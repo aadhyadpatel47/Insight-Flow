@@ -1,6 +1,6 @@
 ### GitHub Repository Name Suggestion
 **`insight-flow`** 
-*(Clean, professional, and matches your branding perfectly. URL: `https://github.com/yourusername/insight-flow`)*
+*(Clean, professional, and matches your branding perfectly. URL: `[https://github.com/yourusername/insight-flow](https://github.com/yourusername/insight-flow)`)*
 
 ***
 
