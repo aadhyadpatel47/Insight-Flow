@@ -115,28 +115,6 @@ Planned enhancements include:
 
 ---
 
-# Screenshots
-
-## Dashboard
-_Add dashboard screenshot here_
-
----
-
-## KPI Analysis
-_Add KPI analysis screenshot here_
-
----
-
-## AI Narrative Panel
-_Add AI narrative screenshot here_
-
----
-
-## Dark Mode
-_Add dark mode screenshot here_
-
----
-
 # Author
 
 ## Aadhya
