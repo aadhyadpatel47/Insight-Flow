@@ -208,117 +208,159 @@ insight-flow/
 ├── vercel.json
 ├── Procfile
 └── README.md
----
 
 # How It Works
-1. Upload
 
-Files are uploaded through multipart form data to /upload.
+## 1. Upload
 
-2. Data Processing
+Files are uploaded to the `/upload` endpoint using multipart form data.
 
-engine.py automatically:
+---
 
-detects domain
-identifies key columns
-cleans the dataset
-validates structure
-prepares metrics
-3. Analysis Pipeline
+## 2. Data Processing
 
-The selected analysis model runs in a single pass and generates:
+`engine.py` automatically:
 
-KPIs
-charts
-anomalies
-summaries
-narrative insights
-4. JSON Response
+- Detects the business domain
+- Identifies key columns
+- Cleans and validates the dataset
+- Standardizes formats
+- Prepares analytical metrics
 
-Everything returns as one optimized JSON payload.
+---
 
-No repeated API calls are required for most dashboard views.
+## 3. Analysis Pipeline
 
-5. Frontend Rendering
+The selected analysis engine runs in a single pass and generates:
 
-The frontend instantly builds:
+- KPI metrics
+- Visual charts
+- Anomaly alerts
+- Statistical summaries
+- AI-powered narrative insights
 
-KPI cards
-dashboards
-tabs
-charts
-summaries
-alerts
+---
+
+## 4. JSON Response
+
+All processed results are returned as one optimized JSON payload.
+
+This minimizes repeated API calls and enables fast dashboard rendering.
+
+---
+
+## 5. Frontend Rendering
+
+The frontend instantly generates:
+
+- KPI cards
+- Interactive dashboards
+- Analytical tabs
+- Charts and visualizations
+- Summary panels
+- Alert banners
 
 using the returned JSON object.
 
-6. Export
+---
 
-The same processed dataset can be:
+## 6. Export
 
-exported as cleaned CSV
-downloaded as standalone HTML report
-API Endpoints
-Endpoint	Method	Description
-/	GET	Serves frontend
-/upload	POST	Upload file and return analysis JSON
-/export	POST	Export cleaned CSV
-/columns	POST	Read headers for dynamic dropdowns
-/health	GET	Health/status endpoint
-Deployment
+The processed dataset can be:
+
+- Exported as a cleaned CSV file
+- Downloaded as a standalone offline HTML report
+
+---
+
+# API Endpoints
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/` | GET | Serves the frontend |
+| `/upload` | POST | Upload file and return analysis JSON |
+| `/export` | POST | Export cleaned CSV |
+| `/columns` | POST | Read file headers for dynamic dropdowns |
+| `/health` | GET | Health and status check |
+
+---
+
+# Deployment
 
 Insight Flow can be deployed on:
 
-Render
-Railway
-Vercel
+- Render
+- Railway
+- Vercel
 
-Recommended:
+### Recommended Setup
 
-Backend → Render/Railway
-Static frontend → Vercel or GitHub Pages
-Known Limitations
-Very large files (>50MB) may take additional processing time.
-Processing is CPU-intensive due to Pandas operations.
-Funnel analysis performs best with dedicated stage/status columns.
-AI narratives are heuristic-based and not LLM-generated.
-Visualization sampling is applied for ultra-large datasets.
-Future Roadmap
+- **Backend** → Render / Railway
+- **Frontend** → Vercel or GitHub Pages
 
-Planned enhancements:
+---
 
-SQL database connectivity
-Real-time dashboards
-User authentication
-Saved sessions
-PDF export
-Predictive forecasting
-Automated ML recommendations
-Multi-user collaboration
-Scheduled report generation
-Screenshots
-Dashboard
+# Known Limitations
 
-Add dashboard screenshot here
+- Very large files (>50MB) may require additional processing time.
+- Data processing is CPU-intensive due to heavy Pandas operations.
+- Funnel analysis performs best with dedicated stage/status columns.
+- AI narratives are heuristic-based and not LLM-generated.
+- Visualization sampling is applied for extremely large datasets.
 
-KPI Analysis
+---
 
-Add KPI screenshot here
+# Future Roadmap
 
-AI Narrative Panel
+Planned enhancements include:
 
-Add narrative screenshot here
+- SQL database connectivity
+- Real-time dashboards
+- User authentication
+- Saved analysis sessions
+- PDF export support
+- Predictive forecasting
+- Automated ML recommendations
+- Multi-user collaboration
+- Scheduled report generation
 
-Dark Mode
+---
 
-Add dark mode screenshot here
+# Screenshots
 
-Author
-Aadhya
-GitHub: https://github.com/aadhyadpatel47
-LinkedIn: https://www.linkedin.com/in/aadhyapatel
-License
+## Dashboard
+_Add dashboard screenshot here_
+
+---
+
+## KPI Analysis
+_Add KPI analysis screenshot here_
+
+---
+
+## AI Narrative Panel
+_Add AI narrative screenshot here_
+
+---
+
+## Dark Mode
+_Add dark mode screenshot here_
+
+---
+
+# Author
+
+## Aadhya
+
+- GitHub: https://github.com/aadhyadpatel47
+- LinkedIn: https://www.linkedin.com/in/aadhyapatel
+
+---
+
+# License
 
 MIT License
 
 Free to use, modify, and distribute.
+---
+
