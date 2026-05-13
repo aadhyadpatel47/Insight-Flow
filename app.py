@@ -558,7 +558,11 @@ tbody tr:hover{background:var(--surface2)}
 <script>
 // ── State ──────────────────────────────────────────────────────
 let S = { file: null, data: null, ltimer: null };
-const BASE = '';
+const IS_GH_PAGES = window.location.hostname.includes("github.io");
+const IS_LOCAL_DEV = window.location.protocol === "file:" || window.location.port === "5500" || window.location.port === "3000" || window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost";
+const VERCEL_URL = "https://your-insight-flow-backend.vercel.app"; // REPLACE THIS after deploying backend to Vercel
+const LOCAL_API   = "http://127.0.0.1:5000";
+const BASE = IS_GH_PAGES ? VERCEL_URL : (IS_LOCAL_DEV ? LOCAL_API : "");
 
 const HINTS = {
   kpi:         'Track revenue over time. Outputs MoM, QoQ, YoY growth with trend charts.',
