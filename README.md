@@ -208,3 +208,117 @@ insight-flow/
 ├── vercel.json
 ├── Procfile
 └── README.md
+---
+
+# How It Works
+1. Upload
+
+Files are uploaded through multipart form data to /upload.
+
+2. Data Processing
+
+engine.py automatically:
+
+detects domain
+identifies key columns
+cleans the dataset
+validates structure
+prepares metrics
+3. Analysis Pipeline
+
+The selected analysis model runs in a single pass and generates:
+
+KPIs
+charts
+anomalies
+summaries
+narrative insights
+4. JSON Response
+
+Everything returns as one optimized JSON payload.
+
+No repeated API calls are required for most dashboard views.
+
+5. Frontend Rendering
+
+The frontend instantly builds:
+
+KPI cards
+dashboards
+tabs
+charts
+summaries
+alerts
+
+using the returned JSON object.
+
+6. Export
+
+The same processed dataset can be:
+
+exported as cleaned CSV
+downloaded as standalone HTML report
+API Endpoints
+Endpoint	Method	Description
+/	GET	Serves frontend
+/upload	POST	Upload file and return analysis JSON
+/export	POST	Export cleaned CSV
+/columns	POST	Read headers for dynamic dropdowns
+/health	GET	Health/status endpoint
+Deployment
+
+Insight Flow can be deployed on:
+
+Render
+Railway
+Vercel
+
+Recommended:
+
+Backend → Render/Railway
+Static frontend → Vercel or GitHub Pages
+Known Limitations
+Very large files (>50MB) may take additional processing time.
+Processing is CPU-intensive due to Pandas operations.
+Funnel analysis performs best with dedicated stage/status columns.
+AI narratives are heuristic-based and not LLM-generated.
+Visualization sampling is applied for ultra-large datasets.
+Future Roadmap
+
+Planned enhancements:
+
+SQL database connectivity
+Real-time dashboards
+User authentication
+Saved sessions
+PDF export
+Predictive forecasting
+Automated ML recommendations
+Multi-user collaboration
+Scheduled report generation
+Screenshots
+Dashboard
+
+Add dashboard screenshot here
+
+KPI Analysis
+
+Add KPI screenshot here
+
+AI Narrative Panel
+
+Add narrative screenshot here
+
+Dark Mode
+
+Add dark mode screenshot here
+
+Author
+Aadhya
+GitHub: https://github.com/aadhyadpatel47
+LinkedIn: https://www.linkedin.com/in/aadhyapatel
+License
+
+MIT License
+
+Free to use, modify, and distribute.
