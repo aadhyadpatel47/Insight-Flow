@@ -3,7 +3,7 @@
 
 > Upload any CSV or Excel file. Get domain-aware business insights, written narrative summaries, anomaly alerts, and a downloadable report — all in seconds.
 
-🔗 **Live Demo:** `your-project.vercel.app`
+🔗 **Live Demo:** `insight-flow-rust.vercel.app`
 📁 **GitHub:** [aadhyadpatel47](https://github.com/aadhyadpatel47)
 💼 **LinkedIn:** [aadhyapatel](https://www.linkedin.com/in/aadhyapatel)
 
