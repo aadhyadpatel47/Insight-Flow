@@ -600,7 +600,8 @@ a{color:inherit;text-decoration:none}
 /* Chart cards */
 .chart-card{
   background:var(--s1);border:1px solid var(--b1);border-radius:var(--r-lg);
-  overflow:hidden;margin-bottom:.9rem;
+  overflow:hidden;margin:0;min-width:0;
+  display:flex;flex-direction:column;
   transition:background .3s,border-color .3s;
 }
 .chart-head{
@@ -616,8 +617,17 @@ a{color:inherit;text-decoration:none}
   font-family:var(--mono);font-size:9px;color:var(--t3);
   letter-spacing:.06em;transition:color .3s;
 }
-.chart-body img{width:100%;height:auto;display:block}
-.chart-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:.9rem}
+.chart-body{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  aspect-ratio:16/9;background:#0d0d1a;
+}
+.chart-body img{
+  width:100%;height:100%;display:block;object-fit:contain;
+}
+.chart-grid{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:1rem;align-items:stretch;
+}
 
 /* Table */
 .table-wrap{overflow-x:auto;border-radius:var(--r);border:1px solid var(--b1)}
@@ -718,7 +728,7 @@ tbody tr:hover{background:var(--s2)}
     margin-top: 1rem;
   }
   .chart-grid {
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .kpi-grid {
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -1404,6 +1414,7 @@ function showPage(n){
     lp.style.display='none';ap.style.display='flex';ap.classList.add('active');
     if(gb)gb.style.opacity='0';
   }
+  requestAnimationFrame(()=>window.scrollTo({top:0,left:0,behavior:'auto'}));
 }
 function goLanding(){showPage('landing');}
 showPage('landing');
@@ -1675,6 +1686,13 @@ function enableRun(){
 }
 
 /* ── RUN ANALYSIS ──────────────────────────────────────────────── */
+function fetchWithTimeout(url, options={}, timeoutMs=60000){
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),timeoutMs);
+  return fetch(url,{...options,signal:controller.signal})
+    .finally(()=>clearTimeout(timer));
+}
+
 function landingRun(){
   if(!S.file)return;
   // Sync selected analysis types from landing to sidebar (already handled by toggleAnalysisType)
@@ -1719,7 +1737,7 @@ async function runAnalysis(typesToRun = selectedAnalysisTypes){
     fd.append('customer_col',document.getElementById('sb-customer-col').value);
 
     try{
-      const res=await fetch('/upload',{method:'POST',body:fd}); // Use relative path
+      const res=await fetchWithTimeout('/upload',{method:'POST',body:fd},60000); // Use relative path
       if(!res.ok){const e=await res.json();throw new Error(e.detail||'Analysis failed for '+type);}
       const data = await res.json();
       results.push(data);
@@ -1732,9 +1750,9 @@ async function runAnalysis(typesToRun = selectedAnalysisTypes){
       results.push({ error: e.message, analysis_type: type, filename: S.file.name });
       S.data = results;
       const target=ensureAnalysisPanel(type);
-      target.innerHTML=errBox(e.message);
+      target.innerHTML=errBox(e.name==='AbortError'?'Request timed out while generating charts. Try fewer analyses or a smaller file.':e.message);
       switchTab('panel-analysis-'+type);
-      toast(`Error running ${type.toUpperCase()} analysis: ${e.message}`, 'error');
+      toast(`Error running ${type.toUpperCase()} analysis: ${e.name==='AbortError'?'Request timed out while generating charts. Try fewer analyses or a smaller file.':e.message}`, 'error');
       showDash();
     }
   }
@@ -2023,6 +2041,7 @@ function switchTab(panelId, el){
   if(tab)tab.classList.add('active');
   if(panel)panel.classList.add('active');
 }
+
 </script>
 </body>
 </html>
