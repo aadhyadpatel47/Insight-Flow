@@ -28,6 +28,7 @@ import io, json, base64, warnings, re, logging
 import pandas as pd
 import numpy as np
 import matplotlib
+matplotlib.use("Agg", force=True)
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import matplotlib.patches as mpatches
@@ -56,6 +57,57 @@ def _clean_col_name(name: str) -> Optional[str]:
     name = re.sub(r"[\s\-/]+", "_", name)
     name = re.sub(r"[^\w]", "", name)
     return name or None
+
+
+_DATE_COLUMN_TOKENS = {
+    "date", "time", "dt", "datetime", "timestamp", "created", "updated",
+    "period", "day", "week", "month", "year"
+}
+
+
+def _looks_like_date_column(name: str) -> bool:
+    cleaned = _clean_col_name(str(name)) or ""
+    tokens = {token for token in cleaned.split("_") if token}
+    if tokens & _DATE_COLUMN_TOKENS:
+        return True
+    return cleaned.endswith(("date", "datetime", "timestamp"))
+
+
+def _parse_datetime_candidate(series: pd.Series, column_name: str) -> Optional[pd.Series]:
+    """Return parsed datetimes only for real date-like columns."""
+    try:
+        if pd.api.types.is_datetime64_any_dtype(series):
+            return series
+        if not _looks_like_date_column(column_name):
+            return None
+
+        non_null = series.dropna()
+        if non_null.empty:
+            return None
+
+        cleaned_name = _clean_col_name(str(column_name)) or ""
+        if pd.api.types.is_numeric_dtype(series):
+            if cleaned_name != "year":
+                return None
+            years = pd.to_numeric(non_null, errors="coerce")
+            if years.between(1900, 2100).mean() <= 0.8:
+                return None
+            parsed = pd.to_datetime(series.astype("Int64").astype(str), format="%Y", errors="coerce")
+        else:
+            sample = non_null.astype(str).str.strip()
+            if sample.str.fullmatch(r"\d+(\.\d+)?").mean() > 0.9 and cleaned_name != "year":
+                return None
+            parsed = pd.to_datetime(series, errors="coerce")
+
+        valid = parsed.notna()
+        if valid.mean() <= 0.5:
+            return None
+        years = parsed[valid].dt.year
+        if years.between(1900, 2100).mean() <= 0.8:
+            return None
+        return parsed
+    except Exception:
+        return None
 
 
 # ── matplotlib defaults ───────────────────────────────────────────────────────
@@ -243,16 +295,10 @@ class InsightFlowEngine:
             if df[c].isnull().any():
                 df[c] = df[c].fillna("Unknown")
 
-        date_kw = ["date","time","dt","created","updated","period","month","year","week"]
         for c in df.select_dtypes("object").columns:
-            if any(k in c.lower() for k in date_kw):
-                try:
-                    # infer_datetime_format removed — pandas 2.0+ auto-infers
-                    parsed = pd.to_datetime(df[c], errors="coerce")
-                    if parsed.notna().sum() > len(df) * 0.5:
-                        df[c] = parsed
-                except Exception:
-                    self.logger.debug(f"Could not convert column '{c}' to datetime. Skipping.")
+            parsed = _parse_datetime_candidate(df[c], c)
+            if parsed is not None:
+                df[c] = parsed
 
         for c in df.select_dtypes("object").columns:
             sample = df[c].dropna().head(50).astype(str)
@@ -322,17 +368,12 @@ class InsightFlowEngine:
         df = self.df
 
         if not self.date_col:
-            date_kw = ["date","time","dt","period","month","year","week"]
             for c in df.columns:
-                if any(k in c.lower() for k in date_kw):
-                    if pd.api.types.is_datetime64_any_dtype(df[c]):
-                        self.date_col = c; break
-                    try:
-                        p = pd.to_datetime(df[c], errors="coerce")
-                        if p.notna().sum() > len(df) * 0.5:
-                            df[c] = p; self.date_col = c; break
-                    except Exception:
-                        self.logger.debug(f"Could not auto-detect date column '{c}' as datetime. Skipping.")
+                parsed = _parse_datetime_candidate(df[c], c)
+                if parsed is not None:
+                    df[c] = parsed
+                    self.date_col = c
+                    break
 
         if not self.metric_col:
             num_cols = df.select_dtypes("number").columns.tolist()
@@ -1595,3 +1636,6 @@ class InsightFlowEngine:
 
 # Backward-compatible alias
 PulseBoardEngine = InsightFlowEngine
+
+
+
