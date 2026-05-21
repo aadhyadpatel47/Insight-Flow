@@ -20,22 +20,22 @@ Fixes applied:
   5. RFM qcut replaced with rank-based scoring (avoids duplicate-bin crashes)
   6. seaborn import removed (unused dependency)
   7. ThreadPoolExecutor-safe (no shared mutable state)
+  8. scipy removed — linear regression now uses numpy.polyfit (no extra dependency)
+  9. plt.close(fig) guaranteed in _fig_to_b64 — zero memory leaks
 """
 
-import io, json, base64, warnings, re
+import io, json, base64, warnings, re, logging
 import pandas as pd
 import numpy as np
 import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import matplotlib.patches as mpatches
-from datetime import datetime
-from scipy import stats as scipy_stats
+from datetime import datetime 
 from collections import Counter
+from typing import List, Optional
 
 warnings.filterwarnings("ignore")
-
 # ── Pandas resample compatibility shim ───────────────────────────────────────
 # pandas >= 2.2 uses "ME" / "QE"; older versions use "M" / "Q"
 try:
@@ -43,11 +43,12 @@ try:
     _RESAMPLE_MONTH   = "ME"
     _RESAMPLE_QUARTER = "QE"
 except Exception:
+    # Fallback for pandas < 2.2
     _RESAMPLE_MONTH   = "M"
     _RESAMPLE_QUARTER = "Q"
 
 # ── Column-name cleaning helper ───────────────────────────────────────────────
-def _clean_col_name(name: str) -> str | None:
+def _clean_col_name(name: str) -> Optional[str]:
     """Apply the same transformation that _clean() applies to DataFrame columns."""
     if not name:
         return None
@@ -115,6 +116,8 @@ class InsightFlowEngine:
     def __init__(self, file_bytes: bytes, ext: str,
                  analysis_type: str = "kpi",
                  date_col=None, metric_col=None, customer_col=None):
+        # Initialize logger for this instance
+        self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         self.file_bytes    = file_bytes
         self.ext           = ext.lower()
         self.analysis_type = analysis_type.lower()
@@ -126,6 +129,25 @@ class InsightFlowEngine:
         self.result        = {}
         self.audit         = []
         self.domain        = "General"
+
+    # Define available analysis types that can be selected as the primary analysis.
+    # These are *in addition* to the baseline KPI and Anomaly Detection.
+    # The keys are the user-facing analysis_type strings.
+    # The values are the corresponding internal methods to be called.
+    _OPTIONAL_ANALYSIS_DISPATCH_MAP = {
+        "rfm":          "_build_rfm",
+        "cohort":       "_build_cohort",
+        "funnel":       "_build_funnel",
+        "ops":          "_build_ops",
+        "seasonal":     "_build_seasonal",
+        "trend":        "_build_trend",
+        "pareto":       "_build_pareto",
+        "price":        "_build_price_sensitivity",
+        "growth":       "_build_growth_accounting",
+        "contribution": "_build_contribution_margin",
+        "velocity":     "_build_velocity",
+        "period":       "_build_period_comparison",
+    }
 
     # ── Public ────────────────────────────────────────────────────────────────
 
@@ -140,23 +162,17 @@ class InsightFlowEngine:
         self._build_kpi()
         self._build_anomalies()
 
-        dispatch = {
-            "rfm":          self._build_rfm,
-            "cohort":       self._build_cohort,
-            "funnel":       self._build_funnel,
-            "ops":          self._build_ops,
-            "seasonal":     self._build_seasonal,
-            "trend":        self._build_trend,
-            "pareto":       self._build_pareto,
-            "price":        self._build_price_sensitivity,
-            "growth":       self._build_growth_accounting,
-            "contribution": self._build_contribution_margin,
-            "velocity":     self._build_velocity,
-            "period":       self._build_period_comparison,
-        }
-        fn = dispatch.get(self.analysis_type)
-        if fn:
-            fn()
+        # Dynamically dispatch to the selected primary analysis type,
+        # but only if it's one of the optional ones (not 'kpi', as it's already run).
+        if self.analysis_type in self._OPTIONAL_ANALYSIS_DISPATCH_MAP:
+            method_name = self._OPTIONAL_ANALYSIS_DISPATCH_MAP[self.analysis_type]
+            fn = getattr(self, method_name, None)
+            if fn:
+                fn()
+            else:
+                self.logger.warning(f"Analysis type '{self.analysis_type}' has no corresponding method '{method_name}'. This should not happen if _OPTIONAL_ANALYSIS_DISPATCH_MAP is correct.")
+        elif self.analysis_type != "kpi": # Log if an unknown or non-optional type was requested
+            self.logger.warning(f"Unknown or non-optional analysis type requested: '{self.analysis_type}'. No specific analysis method dispatched.")
 
         self._build_ai_summary()
         self._build_report_html()
@@ -170,6 +186,7 @@ class InsightFlowEngine:
     # ── Load ──────────────────────────────────────────────────────────────────
 
     def _load(self):
+        # FIX: Read directly from in-memory bytes — never touches disk
         buf = io.BytesIO(self.file_bytes)
         if self.ext == ".csv":
             self.df = pd.read_csv(buf, low_memory=False)
@@ -178,10 +195,12 @@ class InsightFlowEngine:
         elif self.ext == ".json":
             self.df = pd.read_json(buf)
         else:
+            self.logger.error(f"Unsupported file type: {self.ext}")
             raise ValueError(f"Unsupported file type: {self.ext}")
 
     # ── Clean ─────────────────────────────────────────────────────────────────
 
+    # Consider breaking this long function into smaller, more focused helper methods for readability and maintainability.
     def _clean(self):
         df = self.df
         before_rows  = len(df)
@@ -233,7 +252,7 @@ class InsightFlowEngine:
                     if parsed.notna().sum() > len(df) * 0.5:
                         df[c] = parsed
                 except Exception:
-                    pass
+                    self.logger.debug(f"Could not convert column '{c}' to datetime. Skipping.")
 
         for c in df.select_dtypes("object").columns:
             sample = df[c].dropna().head(50).astype(str)
@@ -313,7 +332,7 @@ class InsightFlowEngine:
                         if p.notna().sum() > len(df) * 0.5:
                             df[c] = p; self.date_col = c; break
                     except Exception:
-                        pass
+                        self.logger.debug(f"Could not auto-detect date column '{c}' as datetime. Skipping.")
 
         if not self.metric_col:
             num_cols = df.select_dtypes("number").columns.tolist()
@@ -518,6 +537,7 @@ class InsightFlowEngine:
                     "type": "Z-Score Anomaly",
                 })
 
+        # Period Drop Anomaly Detection
         if self.date_col and self.metric_col:
             try:
                 ts     = (self.df[[self.date_col, self.metric_col]]
@@ -542,8 +562,9 @@ class InsightFlowEngine:
                         ),
                         "type": "Period Drop",
                     })
-            except Exception:
-                pass
+            except Exception as e:
+                self.logger.warning(f"Error detecting period drop anomalies for metric '{self.metric_col}': {e}")
+                # Continue with other anomaly checks even if this one fails
 
         for col in self.df.columns:
             null_pct = self.df[col].isnull().mean()
@@ -645,6 +666,7 @@ class InsightFlowEngine:
                 "sample": rfm.head(100).fillna(0).round(2).to_dict("records"),
             }
         except Exception as e:
+            self.logger.exception(f"RFM analysis failed for customer_col='{self.customer_col}', date_col='{self.date_col}', metric_col='{self.metric_col}'")
             self.result["rfm"] = {"error": str(e)}
 
     def _chart_rfm_donut(self, rfm):
@@ -715,6 +737,7 @@ class InsightFlowEngine:
             else:
                 self.result["cohort"] = {"error": "No metric column for cohort AOV"}
         except Exception as e:
+            self.logger.exception(f"Cohort analysis failed for date_cols='{date_cols}' and metric_col='{self.metric_col}'")
             self.result["cohort"] = {"error": str(e)}
 
     def _chart_cohort_aov(self, aov):
@@ -754,6 +777,7 @@ class InsightFlowEngine:
             "stage_col": stage_col,
         }
 
+    # Consider breaking this long function into smaller, more focused helper methods.
     def _chart_funnel(self, counts):
         fig, ax = plt.subplots(figsize=(9, 5))
         colors = PALETTE[:len(counts)]
@@ -793,6 +817,7 @@ class InsightFlowEngine:
             }
         }
 
+    # Consider breaking this long function into smaller, more focused helper methods.
     def _chart_ops(self, series, ma7, ma30, upper, lower):
         fig, ax = plt.subplots(figsize=(12, 5))
         ax.plot(series.index, series, color="#94A3B8", linewidth=0.8, alpha=0.5, label="Actual")
@@ -827,6 +852,7 @@ class InsightFlowEngine:
             "quarterly_sum": {str(k): round(float(v), 2) for k, v in quarterly.items()},
         }
 
+    # Consider breaking this long function into smaller, more focused helper methods.
     def _chart_seasonal(self, monthly, quarterly, yearly, dow_avg):
         month_names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
         dow_names   = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
@@ -875,8 +901,20 @@ class InsightFlowEngine:
             ts = df[self.metric_col].resample(_RESAMPLE_MONTH).sum()
 
             x    = np.arange(len(ts))
-            slope, intercept, r, p, se = scipy_stats.linregress(x, ts.values)
+            y    = ts.values.astype(float)
+
+            # FIX: numpy polyfit replaces scipy.stats.linregress — no extra dependency
+            coeffs     = np.polyfit(x, y, 1)          # [slope, intercept]
+            slope      = float(coeffs[0])
+            intercept  = float(coeffs[1])
             trend_line = slope * x + intercept
+
+            # Pearson r via numpy corrcoef
+            if y.std() > 0:
+                r = float(np.corrcoef(x, y)[0, 1])
+            else:
+                r = 0.0
+
             ma3  = ts.rolling(3).mean()
             ma6  = ts.rolling(6).mean()
 
@@ -885,8 +923,8 @@ class InsightFlowEngine:
 
             self.result["trend"] = {
                 "chart":     self._chart_trend(ts, trend_line, ma3, ma6),
-                "slope":     round(float(slope), 3),
-                "r_squared": round(float(r**2), 3),
+                "slope":     round(slope, 3),
+                "r_squared": round(r**2, 3),
                 "direction": direction,
                 "strength":  strength,
                 "summary":   (
@@ -895,6 +933,7 @@ class InsightFlowEngine:
                 ),
             }
         except Exception as e:
+            self.logger.exception(f"Trend analysis failed for date_col='{self.date_col}', metric_col='{self.metric_col}'")
             self.result["trend"] = {"error": str(e)}
 
     def _chart_trend(self, ts, trend_line, ma3, ma6):
@@ -945,6 +984,7 @@ class InsightFlowEngine:
                 ),
             }
         except Exception as e:
+            self.logger.exception(f"Pareto analysis failed for metric_col='{self.metric_col}' and detected group_col='{group_col}'")
             self.result["pareto"] = {"error": str(e)}
 
     def _chart_pareto(self, data, threshold_idx):
@@ -996,7 +1036,14 @@ class InsightFlowEngine:
                 count     =(vol_col,   "count"),
             ).reset_index()
 
-            corr = float(scipy_stats.pearsonr(data[price_col], data[vol_col])[0])
+            # FIX: Pearson r via numpy corrcoef — no scipy needed
+            p_arr = data[price_col].values.astype(float)
+            v_arr = data[vol_col].values.astype(float)
+            if p_arr.std() > 0 and v_arr.std() > 0:
+                corr = float(np.corrcoef(p_arr, v_arr)[0, 1])
+            else:
+                corr = 0.0
+
             self.result["price"] = {
                 "chart":       self._chart_price_sensitivity(grouped, price_col, vol_col, corr),
                 "price_col":   price_col,
@@ -1010,6 +1057,7 @@ class InsightFlowEngine:
                 ),
             }
         except Exception as e:
+            self.logger.exception(f"Price sensitivity analysis failed for price_col='{price_col}', vol_col='{vol_col}'")
             self.result["price"] = {"error": str(e)}
 
     def _chart_price_sensitivity(self, grouped, price_col, vol_col, corr):
@@ -1066,6 +1114,7 @@ class InsightFlowEngine:
                 "data":  records[-12:],
             }
         except Exception as e:
+            self.logger.exception(f"Growth accounting analysis failed for date_col='{self.date_col}', customer_col='{self.customer_col}', metric_col='{self.metric_col}'")
             self.result["growth"] = {"error": str(e)}
 
     def _chart_growth_accounting(self, records):
@@ -1116,6 +1165,7 @@ class InsightFlowEngine:
                 "primary_col": primary,
             }
         except Exception as e:
+            self.logger.exception(f"Contribution margin analysis failed for metric_col='{self.metric_col}'")
             self.result["contribution"] = {"error": str(e)}
 
     def _chart_contribution(self, df, group_col):
@@ -1168,6 +1218,7 @@ class InsightFlowEngine:
                 ),
             }
         except Exception as e:
+            self.logger.exception(f"Velocity tracking analysis failed for date_col='{self.date_col}', metric_col='{self.metric_col}'")
             self.result["velocity"] = {"error": str(e)}
 
     def _chart_velocity(self, ts, velocity, acceleration):
@@ -1222,6 +1273,7 @@ class InsightFlowEngine:
                 ),
             }
         except Exception as e:
+            self.logger.exception(f"Period comparison analysis failed for date_col='{self.date_col}', metric_col='{self.metric_col}'")
             self.result["period"] = {"error": str(e)}
 
     def _chart_period_comparison(self, current, previous):
@@ -1332,6 +1384,7 @@ class InsightFlowEngine:
 
     # ── HTML Report ───────────────────────────────────────────────────────────
 
+    # Consider breaking this long function into smaller, more focused helper methods for readability and maintainability.
     def _build_report_html(self):
         sc        = self.result.get("quality_scorecard", {})
         kpi       = self.result.get("kpi", {})
@@ -1396,7 +1449,6 @@ class InsightFlowEngine:
         analysis_section = analysis_chart_html  if analysis_chart_html  else '<p style="color:var(--muted)">No analysis charts available.</p>'
 
         score        = sc.get("quality_score", 0)
-        score_color  = "#3de8b0" if score >= 80 else ("#ffc947" if score >= 60 else "#ff5f7e")
         score_cls    = "g" if score >= 80 else ("y" if score >= 60 else "r")
         now          = datetime.now().strftime("%Y-%m-%d %H:%M")
         metric_label = (self.metric_col or "metric").replace("_", " ").title()
@@ -1470,7 +1522,7 @@ class InsightFlowEngine:
             f'{overview_html}\n'
             f'<div class="grid">\n'
             f'  <div class="card {score_cls}">\n'
-            f'    <div class="num" style="color:{score_color}">{score}</div>\n'
+            f'    <div class="num">{score}</div>\n'
             f'    <div class="lbl">Data Quality Score</div>\n'
             f'  </div>\n'
             f'  <div class="card">\n'
@@ -1514,12 +1566,18 @@ class InsightFlowEngine:
     # ── Helpers ───────────────────────────────────────────────────────────────
 
     def _fig_to_b64(self, fig) -> str:
+        """
+        Save figure to in-memory buffer, encode as base64, then ALWAYS close the
+        figure to prevent matplotlib memory leaks — regardless of exceptions.
+        """
         buf = io.BytesIO()
-        fig.savefig(buf, format="png", dpi=110, bbox_inches="tight",
-                    facecolor=fig.get_facecolor())
-        plt.close(fig)
-        buf.seek(0)
-        return base64.b64encode(buf.read()).decode()
+        try:
+            fig.savefig(buf, format="png", dpi=110, bbox_inches="tight",
+                        facecolor=fig.get_facecolor())
+            buf.seek(0)
+            return base64.b64encode(buf.read()).decode()
+        finally:
+            plt.close(fig)   # FIX: guaranteed even if savefig raises
 
     def _df_to_json(self, df) -> list:
         d = df.copy()
@@ -1527,6 +1585,12 @@ class InsightFlowEngine:
             d[c] = d[c].astype(str)
         return d.fillna(0).round(3).to_dict("records")
 
+    @staticmethod
+    def get_available_analysis_types() -> List[str]:
+        """Returns a list of all available analysis types that can be selected,
+        including 'kpi' as a primary option."""
+        # KPI is always run, but can also be the primary selected analysis type.
+        return ["kpi"] + list(InsightFlowEngine._OPTIONAL_ANALYSIS_DISPATCH_MAP.keys())
 
 # Backward-compatible alias
 PulseBoardEngine = InsightFlowEngine
