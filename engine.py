@@ -1319,12 +1319,15 @@ class InsightFlowEngine:
 
     def _chart_period_comparison(self, current, previous):
         fig, ax = plt.subplots(figsize=(10, 5))
-        x      = np.arange(len(current))
+        n      = max(len(current), len(previous))
+        x      = np.arange(n)
         width  = 0.35
         labels = [str(p)[:7] for p in current.index]
+        if len(labels) < n:
+            labels += [f"Period {i + 1}" for i in range(len(labels), n)]
 
-        bars1 = ax.bar(x - width/2, previous.values, width, color=ACCENT, alpha=0.65, label="Previous Period")
-        bars2 = ax.bar(x + width/2, current.values,  width, color=GREEN,  alpha=0.85, label="Current Period")
+        bars1 = ax.bar(np.arange(len(previous)) - width/2, previous.values, width, color=ACCENT, alpha=0.65, label="Previous Period")
+        bars2 = ax.bar(np.arange(len(current)) + width/2, current.values,  width, color=GREEN,  alpha=0.85, label="Current Period")
         _add_labels(ax, bars1, fmt="{:.0f}", fontsize=7)
         _add_labels(ax, bars2, fmt="{:.0f}", fontsize=7)
 
