@@ -13,7 +13,7 @@ Refactoring applied:
 """
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from fastapi.requests import Request
@@ -324,11 +324,18 @@ async def index(request: Request):
     """Serves the main index.html page with available analysis types."""
     # Fetch available analysis types to pass to the template
     available_types = InsightFlowEngine.get_available_analysis_types()
+    template_path = BASE_DIR / "templates" / "index.html"
+    if template_path.exists():
+        return Response(template_path.read_text(encoding="utf-8"), media_type="text/html")
     return templates.TemplateResponse(
         request=request,
         name="index.html",
         context={"analysis_types": available_types} # Pass to template
     )
+
+@app.get("/favicon.ico")
+async def favicon():
+    return Response(status_code=204)
 
 @app.get("/analysis_types", response_model=AnalysisTypesResponse)
 async def get_analysis_types():
