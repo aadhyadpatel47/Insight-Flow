@@ -31,7 +31,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import matplotlib.patches as mpatches
-from datetime import datetime 
+from datetime import datetime
 from collections import Counter
 from typing import List, Optional
 
@@ -1438,12 +1438,12 @@ class InsightFlowEngine:
         if anom.get("total", 0) == 0:
             alerts_section = '<p style="color:#3de8b0;padding:1rem 0;">✓ No anomalies detected.</p>'
         else:
-            alerts_section = (
+            alerts_section = "".join([
                 "<table>"
                 "<thead><tr><th>Sev</th><th>Type</th><th>Column</th><th>Description</th></tr></thead>"
                 f"<tbody>{alert_rows}</tbody>"
                 "</table>"
-            )
+            ])
 
         kpi_section      = kpi_charts_html      if kpi_charts_html      else '<p style="color:var(--muted)">No date/metric column detected.</p>'
         analysis_section = analysis_chart_html  if analysis_chart_html  else '<p style="color:var(--muted)">No analysis charts available.</p>'
@@ -1456,8 +1456,8 @@ class InsightFlowEngine:
         total_val    = kpi_summary.get("total", 0)
         avg_mom      = kpi_summary.get("avg_mom_pct", 0)
         mom_cls      = "g" if avg_mom >= 0 else "r"
-
-        html = (
+        
+        html_parts = [
             f'<!DOCTYPE html>\n'
             f'<html lang="en">\n'
             f'<head>\n'
@@ -1559,7 +1559,8 @@ class InsightFlowEngine:
             f'<footer>Insight Flow · by Aadhya · {now}</footer>\n'
             f'</body>\n'
             f'</html>'
-        )
+        ]
+        html = "".join(html_parts)
 
         self.result["report_html"] = html
 
