@@ -39,6 +39,10 @@ logger = logging.getLogger(__name__)
 # FIX: Serve index.html via Jinja2Templates — required by spec
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+INDEX_PATHS = [
+    BASE_DIR / "index.html",
+    BASE_DIR / "templates" / "index.html",
+]
 
 # New Pydantic model for the list of analysis types
 class AnalysisTypesResponse(BaseModel):
@@ -322,11 +326,10 @@ footer {
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     """Serves the main index.html page with available analysis types."""
-    # Fetch available analysis types to pass to the template
+    for template_path in INDEX_PATHS:
+        if template_path.exists():
+            return Response(template_path.read_text(encoding="utf-8"), media_type="text/html")
     available_types = InsightFlowEngine.get_available_analysis_types()
-    template_path = BASE_DIR / "templates" / "index.html"
-    if template_path.exists():
-        return Response(template_path.read_text(encoding="utf-8"), media_type="text/html")
     return templates.TemplateResponse(
         request=request,
         name="index.html",
@@ -458,3 +461,4 @@ if __name__ == "__main__":
     host = os.getenv("HOST", "127.0.0.1")
     port = int(os.getenv("PORT", 5000))
     uvicorn.run(app, host=host, port=port)
+
