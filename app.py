@@ -15,7 +15,6 @@ Refactoring applied:
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.templating import Jinja2Templates
 from fastapi.requests import Request
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
@@ -36,12 +35,12 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
-# FIX: Serve index.html via Jinja2Templates — required by spec
+# Serve index.html from the template folder used in the Vercel deployment.
 BASE_DIR = Path(__file__).resolve().parent
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 INDEX_PATHS = [
-    BASE_DIR / "index.html",
+    BASE_DIR / "template" / "index.html",
     BASE_DIR / "templates" / "index.html",
+    BASE_DIR / "index.html",
 ]
 
 # New Pydantic model for the list of analysis types
@@ -329,11 +328,16 @@ async def index(request: Request):
     for template_path in INDEX_PATHS:
         if template_path.exists():
             return Response(template_path.read_text(encoding="utf-8"), media_type="text/html")
-    available_types = InsightFlowEngine.get_available_analysis_types()
-    return templates.TemplateResponse(
-        request=request,
-        name="index.html",
-        context={"analysis_types": available_types} # Pass to template
+    logger.error(
+        "index.html missing. BASE_DIR=%s files=%s",
+        BASE_DIR,
+        [p.name for p in BASE_DIR.iterdir()],
+    )
+    return Response(
+        "<!doctype html><title>Insight Flow</title><h1>Deployment file missing</h1>"
+        "<p>index.html was not included in the Vercel deployment bundle.</p>",
+        media_type="text/html",
+        status_code=500,
     )
 
 @app.get("/favicon.ico")
@@ -461,4 +465,3 @@ if __name__ == "__main__":
     host = os.getenv("HOST", "127.0.0.1")
     port = int(os.getenv("PORT", 5000))
     uvicorn.run(app, host=host, port=port)
-
