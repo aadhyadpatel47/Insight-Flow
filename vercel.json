@@ -6,7 +6,11 @@
       "use": "@vercel/python",
       "config": {
         "python": "3.11",
-        "includeFiles": "{index.html,templates/**}",
+        "includeFiles": [
+          "engine.py",
+          "template/**",
+          "templates/**"
+        ],
         "maxDuration": 300
       }
     }
@@ -14,7 +18,11 @@
   "functions": {
     "app.py": {
       "maxDuration": 300,
-      "includeFiles": "{index.html,templates/**}"
+      "includeFiles": [
+        "engine.py",
+        "template/**",
+        "templates/**"
+      ]
     }
   },
   "routes": [
@@ -24,4 +32,3 @@
     }
   ]
 }
-
