@@ -400,30 +400,37 @@ a{color:inherit;text-decoration:none}
   background-repeat:no-repeat;background-position:right .55rem center;padding-right:1.6rem;
 }
 .sb-field select:focus{border-color:var(--acc);color:var(--t1)}
-.analysis-list{
-  display:flex;flex-direction:column;gap:6px;width:100%;
+.adropdown{width:100%;position:relative}
+.ad-toggle{
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--s2);border:1px solid var(--b1);color:var(--t2);
+  padding:.45rem .6rem;border-radius:var(--r);
+  font-size:12px;cursor:pointer;user-select:none;gap:8px;
+  transition:var(--trans);
 }
-.analysis-option{
-  min-height:36px;display:flex;align-items:center;justify-content:space-between;gap:10px;
-  background:var(--s2);border:1px solid var(--b1);border-radius:var(--r);
-  color:var(--t2);padding:7px 9px;cursor:pointer;transition:var(--trans),transform .15s;
+.ad-toggle.open{border-color:var(--acc);border-radius:var(--r) var(--r) 0 0}
+.ad-label{
+  font-family:var(--sans);font-size:12px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;flex:1;
 }
-.analysis-option:hover{border-color:var(--b2);color:var(--t1)}
-.analysis-option.active{border-color:var(--acc);background:var(--acc-bg);color:var(--t1)}
-.analysis-option input{position:absolute;opacity:0;pointer-events:none}
-.analysis-name{
-  font-size:12px;line-height:1.25;font-weight:400;
+.ad-arrow{flex:0 0 auto;transition:transform .18s}
+.ad-toggle.open .ad-arrow{transform:rotate(180deg)}
+.ad-menu{
+  display:none;position:absolute;top:100%;left:0;right:0;
+  background:var(--s2);border:1px solid var(--acc);border-top:none;
+  border-radius:0 0 var(--r) var(--r);max-height:220px;
+  overflow-y:auto;z-index:500;
 }
-.analysis-switch{
-  width:30px;height:16px;border-radius:999px;background:var(--s3);
-  border:1px solid var(--b2);position:relative;flex:0 0 auto;transition:var(--trans);
+.ad-menu.open{display:block}
+.ad-opt{
+  display:flex;align-items:center;gap:8px;padding:7px 10px;
+  cursor:pointer;font-size:12px;color:var(--t2);
 }
-.analysis-switch::after{
-  content:"";position:absolute;top:2px;left:2px;width:10px;height:10px;border-radius:50%;
-  background:var(--t3);transition:transform .18s,background .18s;
+.ad-opt:hover{background:var(--s3)}
+.ad-opt input[type="checkbox"]{
+  width:15px;height:15px;accent-color:var(--acc);cursor:pointer;
 }
-.analysis-option.active .analysis-switch{background:var(--acc);border-color:var(--acc)}
-.analysis-option.active .analysis-switch::after{transform:translateX(14px);background:#fff}
+.ad-opt-name{font-size:12px;line-height:1.3}
 .sb-hint{
   font-family:var(--sans);font-size:11px;color:var(--t2);
   padding:.3rem 0 .3rem .6rem;border-left:2px solid var(--acc-border);border-radius:0;
@@ -493,9 +500,13 @@ a{color:inherit;text-decoration:none}
   padding:.38rem .55rem;border-radius:var(--r);
   transition:all .3s;font-family:var(--sans);
 }
-.lstep.active{color:var(--acc);background:var(--acc-bg)}
+.lstep.active{color:var(--acc);background:var(--acc-bg);animation:lstep-pulse 1.1s ease-in-out infinite}
 .lstep.done{color:var(--t4);text-decoration:line-through}
 .sdot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
+@keyframes lstep-pulse{
+  0%,100%{opacity:1}
+  50%{opacity:.4}
+}
 
 /* Dashboard */
 .dashboard{display:none}
@@ -1120,20 +1131,8 @@ tbody tr:hover{background:var(--s2)}
           <div class="sp-body">
             <div class="field analysis-field">
               <label>Select analysis types</label>
-              <div class="analysis-list" id="l-analysis-chips">
-                <label class="analysis-option active" data-type="kpi"><input type="checkbox" checked onchange="toggleAnalysisType('kpi')"><span class="analysis-name">KPI Trend Analysis</span><span class="analysis-switch"></span></label>
-                <label class="analysis-option" data-type="trend"><input type="checkbox" onchange="toggleAnalysisType('trend')"><span class="analysis-name">Trend Analysis</span><span class="analysis-switch"></span></label>
-                <label class="analysis-option" data-type="rfm"><input type="checkbox" onchange="toggleAnalysisType('rfm')"><span class="analysis-name">RFM Segmentation</span><span class="analysis-switch"></span></label>
-                <label class="analysis-option" data-type="cohort"><input type="checkbox" onchange="toggleAnalysisType('cohort')"><span class="analysis-name">Cohort Analysis</span><span class="analysis-switch"></span></label>
-                <label class="analysis-option" data-type="funnel"><input type="checkbox" onchange="toggleAnalysisType('funnel')"><span class="analysis-name">Funnel Analysis</span><span class="analysis-switch"></span></label>
-                <label class="analysis-option" data-type="ops"><input type="checkbox" onchange="toggleAnalysisType('ops')"><span class="analysis-name">Ops Monitoring</span><span class="analysis-switch"></span></label>
-                <label class="analysis-option" data-type="seasonal"><input type="checkbox" onchange="toggleAnalysisType('seasonal')"><span class="analysis-name">Seasonal Patterns</span><span class="analysis-switch"></span></label>
-                <label class="analysis-option" data-type="pareto"><input type="checkbox" onchange="toggleAnalysisType('pareto')"><span class="analysis-name">Pareto (80/20)</span><span class="analysis-switch"></span></label>
-                <label class="analysis-option" data-type="price"><input type="checkbox" onchange="toggleAnalysisType('price')"><span class="analysis-name">Price Sensitivity</span><span class="analysis-switch"></span></label>
-                <label class="analysis-option" data-type="growth"><input type="checkbox" onchange="toggleAnalysisType('growth')"><span class="analysis-name">Growth Accounting</span><span class="analysis-switch"></span></label>
-                <label class="analysis-option" data-type="contribution"><input type="checkbox" onchange="toggleAnalysisType('contribution')"><span class="analysis-name">Contribution Margin</span><span class="analysis-switch"></span></label>
-                <label class="analysis-option" data-type="velocity"><input type="checkbox" onchange="toggleAnalysisType('velocity')"><span class="analysis-name">Velocity Tracking</span><span class="analysis-switch"></span></label>
-                <label class="analysis-option" data-type="period"><input type="checkbox" onchange="toggleAnalysisType('period')"><span class="analysis-name">Period Comparison</span><span class="analysis-switch"></span></label>
+              <div id="l-analysis-chips">
+                <div class="adropdown" id="l-adropdown"><div class="ad-toggle" id="l-ad-toggle" onclick="toggleDD('l')"><span class="ad-label" id="l-ad-label">KPI Trend Analysis</span><svg class="ad-arrow" viewBox="0 0 10 10" width="12" height="12"><path d="M2 4l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="ad-menu" id="l-ad-menu"></div></div>
               </div>
             </div>
             <div class="field">
@@ -1245,20 +1244,8 @@ tbody tr:hover{background:var(--s2)}
         <span class="slabel">Analysis settings</span>
         <div class="sb-field" style="grid-column:1/-1">
           <label>Select analysis types</label>
-          <div class="analysis-list" id="sb-analysis-chips">
-            <label class="analysis-option active" data-type="kpi"><input type="checkbox" checked onchange="toggleAnalysisType('kpi')"><span class="analysis-name">KPI Trend Analysis</span><span class="analysis-switch"></span></label>
-            <label class="analysis-option" data-type="trend"><input type="checkbox" onchange="toggleAnalysisType('trend')"><span class="analysis-name">Trend Analysis</span><span class="analysis-switch"></span></label>
-            <label class="analysis-option" data-type="rfm"><input type="checkbox" onchange="toggleAnalysisType('rfm')"><span class="analysis-name">RFM Segmentation</span><span class="analysis-switch"></span></label>
-            <label class="analysis-option" data-type="cohort"><input type="checkbox" onchange="toggleAnalysisType('cohort')"><span class="analysis-name">Cohort Analysis</span><span class="analysis-switch"></span></label>
-            <label class="analysis-option" data-type="funnel"><input type="checkbox" onchange="toggleAnalysisType('funnel')"><span class="analysis-name">Funnel Analysis</span><span class="analysis-switch"></span></label>
-            <label class="analysis-option" data-type="ops"><input type="checkbox" onchange="toggleAnalysisType('ops')"><span class="analysis-name">Ops Monitoring</span><span class="analysis-switch"></span></label>
-            <label class="analysis-option" data-type="seasonal"><input type="checkbox" onchange="toggleAnalysisType('seasonal')"><span class="analysis-name">Seasonal Patterns</span><span class="analysis-switch"></span></label>
-            <label class="analysis-option" data-type="pareto"><input type="checkbox" onchange="toggleAnalysisType('pareto')"><span class="analysis-name">Pareto (80/20)</span><span class="analysis-switch"></span></label>
-            <label class="analysis-option" data-type="price"><input type="checkbox" onchange="toggleAnalysisType('price')"><span class="analysis-name">Price Sensitivity</span><span class="analysis-switch"></span></label>
-            <label class="analysis-option" data-type="growth"><input type="checkbox" onchange="toggleAnalysisType('growth')"><span class="analysis-name">Growth Accounting</span><span class="analysis-switch"></span></label>
-            <label class="analysis-option" data-type="contribution"><input type="checkbox" onchange="toggleAnalysisType('contribution')"><span class="analysis-name">Contribution Margin</span><span class="analysis-switch"></span></label>
-            <label class="analysis-option" data-type="velocity"><input type="checkbox" onchange="toggleAnalysisType('velocity')"><span class="analysis-name">Velocity Tracking</span><span class="analysis-switch"></span></label>
-            <label class="analysis-option" data-type="period"><input type="checkbox" onchange="toggleAnalysisType('period')"><span class="analysis-name">Period Comparison</span><span class="analysis-switch"></span></label>
+          <div id="sb-analysis-chips">
+            <div class="adropdown" id="sb-adropdown"><div class="ad-toggle" id="sb-ad-toggle" onclick="toggleDD('sb')"><span class="ad-label" id="sb-ad-label">KPI Trend Analysis</span><svg class="ad-arrow" viewBox="0 0 10 10" width="12" height="12"><path d="M2 4l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="ad-menu" id="sb-ad-menu"></div></div>
           </div>
         </div>
         <div class="sb-hint" id="sb-ahint">Track revenue over time. Outputs MoM, QoQ, YoY growth with trend charts.</div>
@@ -1441,7 +1428,7 @@ function setFile(f){
   document.getElementById('landing-upload-zone')?.classList.add('loaded');
 
   document.getElementById('landing-settings').style.display='block';
-  updateAnalysisChips('landing'); // Update chips on file load
+  syncDropdowns();
 
   const sui=document.getElementById('sb-uinfo');
   if(sui){sui.textContent=lbl;sui.classList.add('vis');}
@@ -1474,8 +1461,9 @@ async function loadDemo(type){
   const m={sales:'kpi',cohort:'cohort',rfm:'rfm',funnel:'funnel',ops:'ops'};
   if(m[type]){
     selectedAnalysisTypes = [m[type]]; // Set only the demo type as active
-    updateAnalysisChips('landing');
-    updateAnalysisChips('sidebar');
+    buildDD('l');
+    buildDD('sb');
+    syncDropdowns();
     updateHintText();
     updateCustomerFieldVisibility();
   }
@@ -1535,35 +1523,76 @@ function genCSV(type,rows){
 function mulberry32(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 
 /* ── SETTINGS SYNC ─────────────────────────────────────────────── */
-function toggleAnalysisType(type) {
-  const index = selectedAnalysisTypes.indexOf(type);
-  if (index > -1) {
-    if (selectedAnalysisTypes.length === 1) { // Prevent deselecting last one
-      toast("At least one analysis type must be selected.", "warning");
-      updateAnalysisChips('landing');
-      updateAnalysisChips('sidebar');
-      return;
-    }
-    selectedAnalysisTypes.splice(index, 1);
+function buildDD(prefix){
+  const menu=document.getElementById(prefix+'-ad-menu');
+  if(!menu)return;
+  menu.innerHTML='';
+  ANALYSIS_TYPES.forEach(({type,label})=>{
+    const opt=document.createElement('label');
+    opt.className='ad-opt';
+    const input=document.createElement('input');
+    input.type='checkbox';
+    input.value=type;
+    input.checked=selectedAnalysisTypes.includes(type);
+    input.onchange=function(){toggleAnalysisType(type,this.checked);};
+    const name=document.createElement('span');
+    name.className='ad-opt-name';
+    name.textContent=label;
+    opt.append(input,name);
+    menu.appendChild(opt);
+  });
+  syncDropdowns();
+}
+
+function toggleDD(prefix){
+  const toggle=document.getElementById(prefix+'-ad-toggle');
+  const menu=document.getElementById(prefix+'-ad-menu');
+  if(!toggle||!menu)return;
+  const nextOpen=!toggle.classList.contains('open');
+  document.querySelectorAll('.ad-toggle,.ad-menu').forEach(el=>el.classList.remove('open'));
+  toggle.classList.toggle('open',nextOpen);
+  menu.classList.toggle('open',nextOpen);
+}
+
+document.addEventListener('click',e=>{
+  if(e.target.closest('.adropdown'))return;
+  document.querySelectorAll('.ad-toggle,.ad-menu').forEach(el=>el.classList.remove('open'));
+});
+
+function toggleAnalysisType(type, checked) {
+  if (checked) {
+    if (!selectedAnalysisTypes.includes(type)) selectedAnalysisTypes.push(type);
   } else {
-    selectedAnalysisTypes.push(type);
+    if (selectedAnalysisTypes.length === 1 && selectedAnalysisTypes.includes(type)) {
+      toast("At least one analysis type must be selected.", "warning");
+    } else {
+      selectedAnalysisTypes = selectedAnalysisTypes.filter(t=>t!==type);
+    }
   }
-  updateAnalysisChips('landing');
-  updateAnalysisChips('sidebar');
+  syncDropdowns();
   updateHintText();
   updateCustomerFieldVisibility();
   enableRun();
 }
 
-function updateAnalysisChips(target) {
-  const containerId = target === 'landing' ? 'l-analysis-chips' : 'sb-analysis-chips';
-  const container = document.getElementById(containerId);
-  if (!container) return;
-  container.querySelectorAll('.analysis-option').forEach(option => {
-    const isActive = selectedAnalysisTypes.includes(option.dataset.type);
-    option.classList.toggle('active', isActive);
-    const input = option.querySelector('input[type="checkbox"]');
-    if (input) input.checked = isActive;
+function syncDropdowns(){
+  ['l','sb'].forEach(prefix=>{
+    const menu=document.getElementById(prefix+'-ad-menu');
+    const label=document.getElementById(prefix+'-ad-label');
+    if(menu){
+      menu.querySelectorAll('input[type="checkbox"]').forEach(input=>{
+        input.checked=selectedAnalysisTypes.includes(input.value);
+      });
+    }
+    if(label){
+      if(selectedAnalysisTypes.length===0){
+        label.textContent='Select analysis types';
+      }else if(selectedAnalysisTypes.length===1){
+        label.textContent=ANALYSIS_TYPES.find(a=>a.type===selectedAnalysisTypes[0])?.label||selectedAnalysisTypes[0];
+      }else{
+        label.textContent=selectedAnalysisTypes.length+' analyses selected';
+      }
+    }
   });
 }
 
@@ -1673,8 +1702,9 @@ function updateCustomerFieldVisibility() {
 }
 
 // Initial setup
-updateAnalysisChips('landing');
-updateAnalysisChips('sidebar');
+buildDD('l');
+buildDD('sb');
+syncDropdowns();
 updateHintText();
 updateCustomerFieldVisibility();
 
@@ -1686,7 +1716,7 @@ function enableRun(){
 }
 
 /* ── RUN ANALYSIS ──────────────────────────────────────────────── */
-function fetchWithTimeout(url, options={}, timeoutMs=60000){
+function fetchWithTimeout(url, options={}, timeoutMs=180000){
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),timeoutMs);
   return fetch(url,{...options,signal:controller.signal})
@@ -1737,13 +1767,14 @@ async function runAnalysis(typesToRun = selectedAnalysisTypes){
     fd.append('customer_col',document.getElementById('sb-customer-col').value);
 
     try{
-      const res=await fetchWithTimeout('/upload',{method:'POST',body:fd},60000); // Use relative path
+      const res=await fetchWithTimeout('/upload',{method:'POST',body:fd},180000); // Use relative path
       if(!res.ok){const e=await res.json();throw new Error(e.detail||'Analysis failed for '+type);}
       const data = await res.json();
       results.push(data);
       S.data = results;
       renderDashboardShell(data, results.filter(r=>!r.error).length, typesToRun.length);
       renderAnalysisResult(data);
+      finishLoadingSteps();
       showDash();
 
     }catch(e){
@@ -1753,13 +1784,12 @@ async function runAnalysis(typesToRun = selectedAnalysisTypes){
       target.innerHTML=errBox(e.name==='AbortError'?'Request timed out while generating charts. Try fewer analyses or a smaller file.':e.message);
       switchTab('panel-analysis-'+type);
       toast(`Error running ${type.toUpperCase()} analysis: ${e.name==='AbortError'?'Request timed out while generating charts. Try fewer analyses or a smaller file.':e.message}`, 'error');
+      finishLoadingSteps();
       showDash();
     }
   }
 
-  clearInterval(S.ltimer);
-  // Mark all loading steps as done so the spinner never stays on "Generating charts"
-  [1,2,3,4,5].forEach(i=>{const e=document.getElementById('ls'+i);if(e){e.classList.remove('active');e.classList.add('done');}});
+  finishLoadingSteps();
   S.data = results; // Store all results
   if(!results.some(r=>!r.error)){
     renderDash(results);
@@ -1777,6 +1807,13 @@ function showDash(){
   document.getElementById('view-loading').style.display='none';
   document.getElementById('view-dashboard').style.display='';
   document.getElementById('view-dashboard').classList.add('show');
+}
+function finishLoadingSteps(){
+  clearInterval(S.ltimer);
+  [1,2,3,4,5].forEach(i=>{
+    const e=document.getElementById('ls'+i);
+    if(e){e.classList.remove('active');e.classList.add('done');}
+  });
 }
 function animateSteps(){
   let step=1;
