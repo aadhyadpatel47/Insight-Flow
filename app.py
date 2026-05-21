@@ -21,7 +21,6 @@ from typing import List, Dict, Any, Optional
 import logging, sys
 from pathlib import Path
 import io, math, traceback, uvicorn, asyncio
-from engine import InsightFlowEngine
 
 app = FastAPI(title="Insight Flow", version="3.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -42,6 +41,11 @@ INDEX_PATHS = [
     BASE_DIR / "templates" / "index.html",
     BASE_DIR / "index.html",
 ]
+
+
+def get_engine_class():
+    from engine import InsightFlowEngine
+    return InsightFlowEngine
 
 # New Pydantic model for the list of analysis types
 class AnalysisTypesResponse(BaseModel):
@@ -347,6 +351,7 @@ async def favicon():
 @app.get("/analysis_types", response_model=AnalysisTypesResponse)
 async def get_analysis_types():
     """Returns a list of all available analysis types for dropdowns."""
+    InsightFlowEngine = get_engine_class()
     types = InsightFlowEngine.get_available_analysis_types()
     return AnalysisTypesResponse(types=types)
 
@@ -370,6 +375,7 @@ async def upload(
         filename = file.filename
 
         def run_engine():
+            InsightFlowEngine = get_engine_class()
             engine = InsightFlowEngine(
                 contents, ext,
                 analysis_type=analysis_type,
@@ -411,6 +417,7 @@ async def export_csv(file: UploadFile = File(...)):
         filename = file.filename
 
         def _run():
+            InsightFlowEngine = get_engine_class()
             engine = InsightFlowEngine(contents, ext)
             engine._load()
             engine._clean()
@@ -440,6 +447,7 @@ async def get_columns(file: UploadFile = File(...)):
         ext      = "." + file.filename.rsplit(".", 1)[-1].lower()
 
         def _run():
+            InsightFlowEngine = get_engine_class()
             engine = InsightFlowEngine(contents, ext)
             engine._load()
             cols      = list(engine.df.columns)
