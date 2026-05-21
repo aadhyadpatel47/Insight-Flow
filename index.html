@@ -95,6 +95,26 @@ a{color:inherit;text-decoration:none}
   font-family:var(--serif);font-size:14px;font-weight:400;
   font-style:italic;color:var(--t3);letter-spacing:.03em;transition:color .3s;
 }
+.workspace-tabs{
+  flex:1;display:flex;align-items:center;gap:4px;margin:0 1.2rem;
+  min-width:0;overflow-x:auto;scrollbar-width:none;
+}
+.workspace-tabs::-webkit-scrollbar{display:none}
+.wtab{
+  min-width:0;max-width:170px;display:flex;align-items:center;gap:6px;
+  border:1px solid var(--b1);background:var(--s2);color:var(--t3);
+  padding:6px 10px;border-radius:7px;font-family:var(--sans);
+  font-size:12px;line-height:1;cursor:pointer;transition:var(--trans);
+}
+.wtab:hover{border-color:var(--b2);color:var(--t2)}
+.wtab.active{border-color:var(--acc);background:var(--acc-bg);color:var(--t1)}
+.wtab-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.new-tab-btn{
+  flex:0 0 auto;border:1px dashed var(--b2);background:transparent;color:var(--t3);
+  padding:6px 10px;border-radius:7px;font-family:var(--mono);font-size:10px;
+  letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:var(--trans);
+}
+.new-tab-btn:hover{border-color:var(--acc);color:var(--acc);background:var(--acc-bg)}
 .nav-right{display:flex;align-items:center;gap:8px}
 
 /* Mode toggle pill */
@@ -719,6 +739,18 @@ tbody tr:hover{background:var(--s2)}
 }
 .err-box h3{color:var(--t2);font-size:13px;margin-bottom:.3rem;font-family:var(--sans);font-weight:500}
 .err-box p{font-size:11px;color:var(--t3);font-family:var(--mono)}
+.toast-stack{
+  position:fixed;right:18px;bottom:18px;z-index:900;
+  display:flex;flex-direction:column;gap:8px;max-width:min(360px,calc(100vw - 36px));
+}
+.toast{
+  background:var(--s1);border:1px solid var(--b1);border-left:3px solid var(--acc);
+  color:var(--t2);border-radius:var(--r);padding:10px 12px;
+  box-shadow:0 12px 30px rgba(0,0,0,.18);font-size:12px;line-height:1.35;
+}
+.toast.error{border-left-color:var(--dn)}
+.toast.warning{border-left-color:var(--acc2)}
+.toast.success{border-left-color:var(--up)}
 
 /* ── RESPONSIVE ─────────────────────────────────────────────────── */
 @media(max-width:1024px) { /* Tablet landscape / small desktop */
@@ -765,6 +797,18 @@ tbody tr:hover{background:var(--s2)}
   }
   .nav-logo-by {
     font-size: 12px;
+  }
+  .workspace-tabs {
+    margin: 0 .6rem;
+  }
+  .wtab {
+    max-width: 120px;
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+  .new-tab-btn {
+    padding: 6px 8px;
+    font-size: 9px;
   }
   .landing-hero {
     padding: 1rem;
@@ -859,6 +903,18 @@ tbody tr:hover{background:var(--s2)}
   }
   .nav-logo-by {
     display: none; /* Hide "by Aadhya" on very small screens */
+  }
+  .workspace-tabs {
+    margin: 0 .35rem;
+  }
+  .wtab {
+    max-width: 86px;
+    padding: 5px 7px;
+    font-size: 10px;
+  }
+  .new-tab-btn {
+    padding: 5px 7px;
+    font-size: 8px;
   }
   .mode-toggle {
     padding: 2px;
@@ -1068,7 +1124,9 @@ tbody tr:hover{background:var(--s2)}
       <span class="nav-logo-sep">/</span>
       <span class="nav-logo-by">by Aadhya</span>
     </a>
+    <div class="workspace-tabs" id="landing-workspace-tabs"></div>
     <div class="nav-right">
+      <button class="new-tab-btn" onclick="newWorkspace()">+ New</button>
       <div class="mode-toggle" role="group" aria-label="Color mode">
         <button class="mode-btn" id="btn-light-l" onclick="setTheme('light')" title="Light mode" aria-label="Switch to light mode">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
@@ -1199,7 +1257,9 @@ tbody tr:hover{background:var(--s2)}
       <span class="nav-logo-sep">/</span>
       <span class="nav-logo-by">by Aadhya</span>
     </a>
+    <div class="workspace-tabs" id="app-workspace-tabs"></div>
     <div class="nav-right">
+      <button class="new-tab-btn" onclick="newWorkspace()">+ New</button>
       <button class="nav-back-btn show" id="nav-back" onclick="goLanding()">
         ← Back
       </button>
@@ -1374,6 +1434,74 @@ const ANALYSIS_TYPES=[
   {type:'period',label:'Period Comparison',tab:'Period'},
 ];
 let selectedAnalysisTypes=['kpi'];
+let workspaceSeq=1;
+
+function createWorkspace(){
+  const id=workspaceSeq++;
+  return {
+    id,
+    name:'Analysis '+id,
+    file:null,
+    data:null,
+    selectedAnalysisTypes:['kpi'],
+    columns:null,
+    dateCol:'',
+    metricCol:'',
+    customerCol:'',
+    page:'landing'
+  };
+}
+
+let workspaces=[createWorkspace()];
+let activeWorkspaceId=workspaces[0].id;
+
+function currentWorkspace(){
+  return workspaces.find(w=>w.id===activeWorkspaceId) || workspaces[0];
+}
+
+function shortName(name){
+  if(!name)return'Untitled';
+  return name.length>22 ? name.slice(0,19)+'...' : name;
+}
+
+function renderWorkspaceTabs(){
+  ['landing-workspace-tabs','app-workspace-tabs'].forEach(id=>{
+    const c=document.getElementById(id);
+    if(!c)return;
+    c.innerHTML='';
+    workspaces.forEach((w,idx)=>{
+      const btn=document.createElement('button');
+      btn.type='button';
+      btn.className='wtab'+(w.id===activeWorkspaceId?' active':'');
+      btn.title=w.file?.name||w.name;
+      btn.onclick=()=>switchWorkspace(w.id);
+      const label=document.createElement('span');
+      label.className='wtab-label';
+      label.textContent=w.file ? shortName(w.file.name) : 'New '+(idx+1);
+      btn.appendChild(label);
+      c.appendChild(btn);
+    });
+  });
+}
+
+function getSelectValue(base){
+  const pageApp=document.getElementById('page-app')?.classList.contains('active');
+  const preferred=document.getElementById((pageApp?'sb-':'l-')+base);
+  const fallback=document.getElementById((pageApp?'l-':'sb-')+base);
+  return preferred?.value || fallback?.value || '';
+}
+
+function saveWorkspaceState(){
+  const w=currentWorkspace();
+  if(!w)return;
+  w.file=S.file;
+  w.data=S.data;
+  w.selectedAnalysisTypes=[...selectedAnalysisTypes];
+  w.dateCol=getSelectValue('date-col');
+  w.metricCol=getSelectValue('metric-col');
+  w.customerCol=getSelectValue('customer-col');
+  w.page=document.getElementById('page-app')?.classList.contains('active')?'app':'landing';
+}
 
 /* ── THEME ─────────────────────────────────────────────────────── */
 function setTheme(t){
@@ -1394,7 +1522,6 @@ function showPage(n){
   const gb=document.getElementById('grid-bg');
   const th=document.documentElement.getAttribute('data-theme');
   if(n==='landing'){
-    S.data = null; // Clear previous analysis results when going back to landing
     lp.style.display='flex';ap.style.display='none';ap.classList.remove('active');
     if(gb)gb.style.opacity=th==='dark'?'1':'0';
   } else {
@@ -1403,10 +1530,164 @@ function showPage(n){
   }
   requestAnimationFrame(()=>window.scrollTo({top:0,left:0,behavior:'auto'}));
 }
-function goLanding(){showPage('landing');}
+function goLanding(){
+  saveWorkspaceState();
+  const w=currentWorkspace();
+  if(w)w.page='landing';
+  showPage('landing');
+  renderWorkspaceTabs();
+}
 showPage('landing');
+renderWorkspaceTabs();
 
 /* ── FILE UPLOAD ───────────────────────────────────────────────── */
+function fileLabel(f){
+  if(!f)return'';
+  const sz=f.size>1048576?(f.size/1048576).toFixed(1)+' MB':(f.size/1024).toFixed(0)+' KB';
+  return '✓ '+f.name+' ('+sz+')';
+}
+
+function updateFileUI(f){
+  const lbl=fileLabel(f);
+  ['landing-uinfo','sb-uinfo'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.textContent=lbl;
+    el.classList.toggle('vis',!!f);
+  });
+  document.getElementById('landing-upload-zone')?.classList.toggle('loaded',!!f);
+  document.getElementById('sb-upload-zone')?.classList.toggle('loaded',!!f);
+  const settings=document.getElementById('landing-settings');
+  if(settings)settings.style.display=f?'block':'none';
+  if(!f){
+    ['landing-file-input','sb-file-input'].forEach(id=>{
+      const inp=document.getElementById(id);
+      if(inp)inp.value='';
+    });
+  }
+}
+
+function clearSelects(){
+  ['l-date-col','sb-date-col','l-metric-col','sb-metric-col','l-customer-col','sb-customer-col'].forEach(id=>{
+    const s=document.getElementById(id);
+    if(s)s.innerHTML='<option value="">Auto-detect</option>';
+  });
+}
+
+function fillColumnSelectors(d){
+  if(!d){clearSelects();return;}
+  ['l-date-col','sb-date-col'].forEach(id=>fillSel(id,d.date,d.all));
+  ['l-metric-col','sb-metric-col'].forEach(id=>fillSel(id,d.numeric,d.all));
+  ['l-customer-col','sb-customer-col'].forEach(id=>fillSel(id,d.id,d.all));
+}
+
+function setSelectIfExists(id,value){
+  const el=document.getElementById(id);
+  if(el)el.value=value||'';
+}
+
+function applyWorkspaceSelections(w){
+  ['l-date-col','sb-date-col'].forEach(id=>setSelectIfExists(id,w.dateCol));
+  ['l-metric-col','sb-metric-col'].forEach(id=>setSelectIfExists(id,w.metricCol));
+  ['l-customer-col','sb-customer-col'].forEach(id=>setSelectIfExists(id,w.customerCol));
+}
+
+function clearDashboardView(){
+  clearInterval(S.ltimer);
+  document.getElementById('view-loading').style.display='none';
+  document.getElementById('view-dashboard').style.display='none';
+  document.getElementById('view-dashboard').classList.remove('show');
+  resetDashboardTabs();
+  ['summary-cards','kpi-stats','kpi-charts','alerts-content','quality-content','panel-preview'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.innerHTML='';
+  });
+  const ai=document.getElementById('ai-summary');
+  if(ai)ai.style.display='none';
+  const lrs=document.getElementById('sb-last-run');
+  if(lrs)lrs.style.display='none';
+}
+
+function renderSavedDashboard(data){
+  const results=Array.isArray(data)?data.filter(Boolean):[data].filter(Boolean);
+  resetDashboardTabs();
+  if(!results.length){clearDashboardView();return;}
+  const successful=results.filter(r=>!r.error);
+  if(!successful.length){renderDash(results);return;}
+  results.forEach(r=>{
+    if(r.error){
+      const target=ensureAnalysisPanel(r.analysis_type||'kpi');
+      target.innerHTML=errBox(r.error);
+    }else{
+      renderDashboardShell(r,successful.length,results.length);
+      renderAnalysisResult(r);
+    }
+  });
+  showDash();
+}
+
+function restoreWorkspace(w){
+  if(!w)return;
+  clearInterval(S.ltimer);
+  S.file=w.file||null;
+  S.data=w.data||null;
+  selectedAnalysisTypes=[...(w.selectedAnalysisTypes?.length?w.selectedAnalysisTypes:['kpi'])];
+  updateFileUI(S.file);
+  fillColumnSelectors(w.columns);
+  applyWorkspaceSelections(w);
+  buildDD('l');
+  buildDD('sb');
+  syncDropdowns();
+  updateHintText();
+  updateCustomerFieldVisibility();
+  enableRun();
+  renderWorkspaceTabs();
+  if(w.data){
+    showPage('app');
+    renderSavedDashboard(w.data);
+  }else{
+    showPage('landing');
+    clearDashboardView();
+  }
+}
+
+function newWorkspace(){
+  saveWorkspaceState();
+  const w=createWorkspace();
+  workspaces.push(w);
+  activeWorkspaceId=w.id;
+  restoreWorkspace(w);
+  toast('New analysis tab ready.', 'success');
+}
+
+function switchWorkspace(id){
+  if(id===activeWorkspaceId)return;
+  saveWorkspaceState();
+  activeWorkspaceId=id;
+  restoreWorkspace(currentWorkspace());
+}
+
+function syncSelectPair(sourceId,targetId,key){
+  const source=document.getElementById(sourceId);
+  const target=document.getElementById(targetId);
+  if(!source)return;
+  source.addEventListener('change',()=>{
+    if(target)target.value=source.value;
+    const w=currentWorkspace();
+    if(w)w[key]=source.value;
+    saveWorkspaceState();
+  });
+}
+
+function wireWorkspaceSelects(){
+  syncSelectPair('l-date-col','sb-date-col','dateCol');
+  syncSelectPair('sb-date-col','l-date-col','dateCol');
+  syncSelectPair('l-metric-col','sb-metric-col','metricCol');
+  syncSelectPair('sb-metric-col','l-metric-col','metricCol');
+  syncSelectPair('l-customer-col','sb-customer-col','customerCol');
+  syncSelectPair('sb-customer-col','l-customer-col','customerCol');
+}
+
 function wireUpload(zoneId,inputId){
   const zone=document.getElementById(zoneId),inp=document.getElementById(inputId);
   if(!zone||!inp)return;
@@ -1418,9 +1699,22 @@ function wireUpload(zoneId,inputId){
 }
 wireUpload('landing-upload-zone','landing-file-input');
 wireUpload('sb-upload-zone','sb-file-input');
+wireWorkspaceSelects();
 
 function setFile(f){
   S.file=f;
+  S.data=null;
+  const w=currentWorkspace();
+  if(w){
+    w.file=f;
+    w.data=null;
+    w.columns=null;
+    w.dateCol='';
+    w.metricCol='';
+    w.customerCol='';
+    w.name=f.name;
+  }
+  clearSelects();
   const sz=f.size>1048576?(f.size/1048576).toFixed(1)+' MB':(f.size/1024).toFixed(0)+' KB';
   const lbl='✓ '+f.name+' ('+sz+')';
   const lui=document.getElementById('landing-uinfo');
@@ -1433,6 +1727,8 @@ function setFile(f){
   const sui=document.getElementById('sb-uinfo');
   if(sui){sui.textContent=lbl;sui.classList.add('vis');}
   document.getElementById('sb-upload-zone')?.classList.add('loaded');
+  clearDashboardView();
+  renderWorkspaceTabs();
   enableRun();fetchCols(f);
 }
 
@@ -1441,9 +1737,13 @@ async function fetchCols(f){
     const fd=new FormData();fd.append('file',f);
     const r=await fetch('/columns',{method:'POST',body:fd}); // Use relative path
     if(!r.ok)return;const d=await r.json();
+    const w=currentWorkspace();
+    if(!w||w.file!==f)return;
+    w.columns=d;
     ['l-date-col','sb-date-col'].forEach(id=>fillSel(id,d.date,d.all));
     ['l-metric-col','sb-metric-col'].forEach(id=>fillSel(id,d.numeric,d.all));
     ['l-customer-col','sb-customer-col'].forEach(id=>fillSel(id,d.id,d.all));
+    if(w)applyWorkspaceSelections(w);
   }catch(e){}
 }
 function fillSel(id,priority,all){
@@ -1461,6 +1761,8 @@ async function loadDemo(type){
   const m={sales:'kpi',cohort:'cohort',rfm:'rfm',funnel:'funnel',ops:'ops'};
   if(m[type]){
     selectedAnalysisTypes = [m[type]]; // Set only the demo type as active
+    const w=currentWorkspace();
+    if(w)w.selectedAnalysisTypes=[...selectedAnalysisTypes];
     buildDD('l');
     buildDD('sb');
     syncDropdowns();
@@ -1573,6 +1875,7 @@ function toggleAnalysisType(type, checked) {
   updateHintText();
   updateCustomerFieldVisibility();
   enableRun();
+  saveWorkspaceState();
 }
 
 function syncDropdowns(){
@@ -1732,11 +2035,17 @@ function landingRun(){
     const sbEl = document.getElementById('sb-'+k);
     if(sbEl) sbEl.value = lVal;
   });
+  saveWorkspaceState();
   showPage('app');
+  const w=currentWorkspace();
+  if(w)w.page='app';
   runAnalysis([...selectedAnalysisTypes]);
 }
 
 async function runAnalysis(typesToRun = selectedAnalysisTypes){
+  saveWorkspaceState();
+  const activeW=currentWorkspace();
+  if(activeW)activeW.page='app';
   typesToRun=[...typesToRun];
   if(!S.file || typesToRun.length === 0) {
     toast("No analysis types selected.", "error");
@@ -1772,6 +2081,8 @@ async function runAnalysis(typesToRun = selectedAnalysisTypes){
       const data = await res.json();
       results.push(data);
       S.data = results;
+      const w=currentWorkspace();
+      if(w){w.data=results;w.file=S.file;w.selectedAnalysisTypes=[...selectedAnalysisTypes];}
       renderDashboardShell(data, results.filter(r=>!r.error).length, typesToRun.length);
       renderAnalysisResult(data);
       finishLoadingSteps();
@@ -1780,6 +2091,8 @@ async function runAnalysis(typesToRun = selectedAnalysisTypes){
     }catch(e){
       results.push({ error: e.message, analysis_type: type, filename: S.file.name });
       S.data = results;
+      const w=currentWorkspace();
+      if(w){w.data=results;w.file=S.file;w.selectedAnalysisTypes=[...selectedAnalysisTypes];}
       const target=ensureAnalysisPanel(type);
       target.innerHTML=errBox(e.name==='AbortError'?'Request timed out while generating charts. Try fewer analyses or a smaller file.':e.message);
       switchTab('panel-analysis-'+type);
@@ -1791,6 +2104,9 @@ async function runAnalysis(typesToRun = selectedAnalysisTypes){
 
   finishLoadingSteps();
   S.data = results; // Store all results
+  const w=currentWorkspace();
+  if(w){w.data=results;w.file=S.file;w.selectedAnalysisTypes=[...selectedAnalysisTypes];}
+  renderWorkspaceTabs();
   if(!results.some(r=>!r.error)){
     renderDash(results);
   }
@@ -2039,6 +2355,26 @@ function stype(dt){
   if(dt.includes('object'))return'TXT';
   if(dt.includes('bool'))return'BOOL';
   return dt.slice(0,4).toUpperCase();
+}
+
+function toast(message,type='info'){
+  let stack=document.getElementById('toast-stack');
+  if(!stack){
+    stack=document.createElement('div');
+    stack.id='toast-stack';
+    stack.className='toast-stack';
+    document.body.appendChild(stack);
+  }
+  const item=document.createElement('div');
+  item.className='toast '+type;
+  item.textContent=message;
+  stack.appendChild(item);
+  setTimeout(()=>{
+    item.style.opacity='0';
+    item.style.transform='translateY(6px)';
+    item.style.transition='opacity .2s, transform .2s';
+    setTimeout(()=>item.remove(),220);
+  },2800);
 }
 
 function switchTab(panelId, el){
