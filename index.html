@@ -1758,49 +1758,16 @@ async function runAnalysis(typesToRun = selectedAnalysisTypes){
   }
 
   clearInterval(S.ltimer);
+  // Mark all loading steps as done so the spinner never stays on "Generating charts"
+  [1,2,3,4,5].forEach(i=>{const e=document.getElementById('ls'+i);if(e){e.classList.remove('active');e.classList.add('done');}});
   S.data = results; // Store all results
   if(!results.some(r=>!r.error)){
     renderDash(results);
   }
+  showDash();
 }
 
-function animateSteps(){
-  let step = 1;
-  const steps = [
-    'Loading & validating file',
-    'Cleaning — 10 rules applied',
-    'Detecting domain & columns',
-    'Running business analysis',
-    'Generating charts & narratives'
-  ];
 
-  // Reset all steps
-  for (let i = 1; i <= steps.length; i++) {
-    const el = document.getElementById('ls' + i);
-    if (el) {
-      el.classList.remove('active', 'done');
-      el.textContent = steps[i-1]; // Reset text
-    }
-  }
-
-  document.getElementById('ls1')?.classList.add('active');
-  document.getElementById('ltitle').textContent = 'Analysing'; // Initial generic title
-
-  try{
-    clearInterval(S.ltimer); // Clear any previous timer
-    S.ltimer=setInterval(()=>{
-      if(step < steps.length){
-        document.getElementById('ls'+step)?.classList.replace('active','done');
-        document.getElementById('ls'+(step+1))?.classList.add('active');
-        step++;
-      } else {
-        clearInterval(S.ltimer);
-      }
-    },850);
-  } catch(e) {
-    console.error("Error animating steps:", e);
-  }
-}
 function showLoading(){
   document.getElementById('view-loading').style.display='';
   document.getElementById('view-dashboard').style.display='none';
@@ -1813,13 +1780,17 @@ function showDash(){
 }
 function animateSteps(){
   let step=1;
+  const totalSteps=5;
+  clearInterval(S.ltimer);
   [1,2,3,4,5].forEach(i=>{const e=document.getElementById('ls'+i);if(e)e.classList.remove('active','done');});
   document.getElementById('ls1')?.classList.add('active');
   S.ltimer=setInterval(()=>{
-    if(step<5){
+    if(step<totalSteps){
       document.getElementById('ls'+step)?.classList.replace('active','done');
       document.getElementById('ls'+(step+1))?.classList.add('active');
       step++;
+    } else {
+      clearInterval(S.ltimer);
     }
   },850);
 }
