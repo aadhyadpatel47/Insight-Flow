@@ -6,3 +6,5 @@ matplotlib
 Jinja2
 python-multipart
 pydantic
+openpyxl
+xlrd
