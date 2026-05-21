@@ -5,13 +5,17 @@
       "src": "app.py",
       "use": "@vercel/python",
       "config": {
-        "python": "3.11"
+        "python": "3.11",
+        "includeFiles": [
+          "templates/**"
+        ]
       }
     }
   ],
   "functions": {
     "app.py": {
-      "maxDuration": 300
+      "maxDuration": 300,
+      "includeFiles": "templates/**"
     }
   },
   "routes": [
@@ -21,3 +25,4 @@
     }
   ]
 }
+
