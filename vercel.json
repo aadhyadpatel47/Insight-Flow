@@ -6,16 +6,15 @@
       "use": "@vercel/python",
       "config": {
         "python": "3.11",
-        "includeFiles": [
-          "templates/**"
-        ]
+        "includeFiles": "{index.html,templates/**}",
+        "maxDuration": 300
       }
     }
   ],
   "functions": {
     "app.py": {
       "maxDuration": 300,
-      "includeFiles": "templates/**"
+      "includeFiles": "{index.html,templates/**}"
     }
   },
   "routes": [
