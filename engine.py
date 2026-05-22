@@ -11,7 +11,15 @@ Fixes vs v3:
   - Column name sync after clean()
   - No disk writes anywhere
 """
+import os, tempfile
 
+# Serverless filesystems usually only allow writes under /tmp. Matplotlib may
+# create a font/config cache at import time, so point it somewhere writable
+# before importing matplotlib.
+os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "matplotlib"))
+
+import matplotlib
+matplotlib.use('Agg')
 import io, base64, warnings, re, logging, traceback
 import pandas as pd
 import numpy as np
@@ -216,11 +224,17 @@ class InsightFlowEngine:
             self.df = pd.read_json(buf)
         else:
             raise ValueError(f"Unsupported file type: {self.ext}")
+        if not isinstance(self.df, pd.DataFrame):
+            self.df = pd.DataFrame(self.df)
+        if self.df.empty or len(self.df.columns) == 0:
+            raise ValueError("The uploaded file does not contain any tabular data")
 
     # ── clean ─────────────────────────────────────────────────────────────────
 
     def _clean(self):
         df = self.df
+        if df is None or df.empty:
+            raise ValueError("The uploaded file does not contain any rows")
         br = len(df);  bn = int(df.isnull().sum().sum());  bd = int(df.duplicated().sum())
 
         df = df.drop_duplicates()
@@ -274,6 +288,8 @@ class InsightFlowEngine:
         key_cols = [c for c in df.columns if any(k in c.lower() for k in ["id","key","uid","ref"])]
         if key_cols:
             df = df.drop_duplicates(subset=key_cols, keep="first")
+        if df.empty or len(df.columns) == 0:
+            raise ValueError("No usable rows or columns remain after cleaning")
 
         self.df = df
         ar = len(df);  an = int(df.isnull().sum().sum())
