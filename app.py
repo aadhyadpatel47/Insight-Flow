@@ -35,11 +35,37 @@ INDEX_PATHS = [
     BASE_DIR / "templates" / "index.html",
     BASE_DIR / "index.html",
 ]
+SUPPORTED_EXTS = {".csv", ".xlsx", ".xls", ".json"}
+MAX_UPLOAD_BYTES = 4 * 1024 * 1024
 
 
 def get_engine():
     from engine import InsightFlowEngine
     return InsightFlowEngine
+
+
+def _get_ext(filename: str) -> str:
+    ext = Path(filename or "").suffix.lower()
+    if ext not in SUPPORTED_EXTS:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported file type. Upload a CSV, XLSX, XLS, or JSON file.",
+        )
+    return ext
+
+
+async def _read_upload(file: UploadFile) -> tuple[str, bytes, str]:
+    filename = file.filename or "upload"
+    ext = _get_ext(filename)
+    contents = await file.read()
+    if not contents:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+    if len(contents) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail="Upload is too large for Vercel. Please use a file under 4 MB.",
+        )
+    return filename, contents, ext
 
 
 def _json_safe(value: Any) -> Any:
@@ -128,17 +154,20 @@ async def favicon():
 
 
 @app.get("/health")
+@app.get("/api/health")
 async def health():
     return {"status": "ok", "version": "4.0.0"}
 
 
 @app.get("/analysis_types", response_model=AnalysisTypesResponse)
+@app.get("/api/analysis_types", response_model=AnalysisTypesResponse)
 async def get_analysis_types():
     E = get_engine()
     return AnalysisTypesResponse(types=E.get_available_analysis_types())
 
 
 @app.post("/upload")
+@app.post("/api/upload")
 async def upload(
     file: UploadFile = File(...),
     analysis_type: str = Form("kpi"),
@@ -146,10 +175,8 @@ async def upload(
     metric_col: str = Form(""),
     customer_col: str = Form(""),
 ):
-    filename = file.filename or "upload"
     try:
-        contents = await file.read()
-        ext = Path(filename).suffix.lower()
+        filename, contents, ext = await _read_upload(file)
 
         def run_engine():
             E = get_engine()
@@ -169,17 +196,21 @@ async def upload(
         result = await asyncio.to_thread(run_engine)
         return JSONResponse(_json_safe(result))
 
+    except HTTPException:
+        raise
+    except (ValueError, UnicodeDecodeError) as e:
+        logger.info("Upload rejected: %s", e)
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.exception("Upload error for %s", filename)
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Upload error")
+        raise HTTPException(status_code=422, detail=f"Analysis failed: {e}")
 
 
 @app.post("/export")
+@app.post("/api/export")
 async def export_csv(file: UploadFile = File(...)):
-    filename = file.filename or "upload"
     try:
-        contents = await file.read()
-        ext = Path(filename).suffix.lower()
+        filename, contents, ext = await _read_upload(file)
 
         def _run():
             E = get_engine()
@@ -197,17 +228,21 @@ async def export_csv(file: UploadFile = File(...)):
             media_type="text/csv",
             headers={"Content-Disposition": f"attachment; filename=cleaned_{filename}"},
         )
+    except HTTPException:
+        raise
+    except (ValueError, UnicodeDecodeError) as e:
+        logger.info("Export rejected: %s", e)
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception("Export error")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=422, detail=f"Export failed: {e}")
 
 
 @app.post("/columns", response_model=ColumnInfo)
+@app.post("/api/columns", response_model=ColumnInfo)
 async def get_columns(file: UploadFile = File(...)):
-    filename = file.filename or "upload"
     try:
-        contents = await file.read()
-        ext = "." + filename.rsplit(".", 1)[-1].lower()
+        filename, contents, ext = await _read_upload(file)
 
         def _run():
             E = get_engine()
@@ -221,9 +256,14 @@ async def get_columns(file: UploadFile = File(...)):
 
         result = await asyncio.to_thread(_run)
         return result
+    except HTTPException:
+        raise
+    except (ValueError, UnicodeDecodeError) as e:
+        logger.info("Columns rejected: %s", e)
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception("Columns error")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=422, detail=f"Column detection failed: {e}")
 
 
 if __name__ == "__main__":
