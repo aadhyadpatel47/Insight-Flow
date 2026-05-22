@@ -1,4 +1,3 @@
-
 from pathlib import Path
 import sys
 
@@ -6,4 +5,6 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from insightflow_app import app
+from insightflow_app import app as insightflow_app
+
+app = insightflow_app
