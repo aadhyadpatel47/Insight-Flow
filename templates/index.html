@@ -66,6 +66,25 @@ a{color:inherit;text-decoration:none}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--b2);border-radius:4px}
 
+.toast-stack{
+  position:fixed;right:18px;bottom:18px;z-index:1000;
+  display:flex;flex-direction:column;gap:8px;max-width:min(360px,calc(100vw - 32px));
+  pointer-events:none;
+}
+.toast{
+  background:var(--s1);border:1px solid var(--b1);border-left:3px solid var(--acc);
+  color:var(--t2);border-radius:var(--r);padding:.7rem .85rem;
+  box-shadow:0 12px 28px rgba(0,0,0,.35);
+  font-size:12px;line-height:1.45;pointer-events:auto;
+  animation:fadeup .18s ease both;
+}
+.toast.error{border-left-color:var(--dn)}
+.toast.warning{border-left-color:var(--up)}
+.toast-title{
+  display:block;margin-bottom:2px;color:var(--t1);
+  font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+}
+
 /* ── ANIMATIONS ─────────────────────────────────────────────────── */
 @keyframes shimmer{to{background-position:200% center}}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -441,30 +460,45 @@ a{color:inherit;text-decoration:none}
 .ap-header-actions{display:flex;gap:8px}
 .ap-action{color:var(--acc);cursor:pointer;font-family:var(--mono);font-size:9px;letter-spacing:.06em}
 .ap-action:hover{text-decoration:underline}
-.analysis-option{
-  display:flex;align-items:center;gap:8px;
-  padding:.45rem .7rem;cursor:pointer;
-  transition:background .12s,color .12s;border:none;background:transparent;
-  color:var(--t2);font-size:12px;font-family:var(--sans);text-align:left;
+.analysis-list{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:6px;max-height:188px;overflow-y:auto;padding-right:2px;
 }
-.analysis-option:hover{background:var(--s2);color:var(--t1)}
-.analysis-option.active{color:var(--t1)}
+.analysis-list::-webkit-scrollbar{width:3px}
+.analysis-list::-webkit-scrollbar-thumb{background:var(--b2);border-radius:3px}
+.sidebar .analysis-list{grid-template-columns:1fr;max-height:230px}
+.analysis-option{
+  display:flex;align-items:center;gap:8px;min-width:0;
+  padding:.5rem .6rem;cursor:pointer;border:1px solid var(--b1);
+  border-radius:var(--r);background:var(--bg);
+  color:var(--t2);font-size:12px;font-family:var(--sans);text-align:left;
+  transition:background .12s,color .12s,border-color .12s,box-shadow .12s;
+}
+.analysis-option:hover{background:var(--s2);color:var(--t1);border-color:var(--b2)}
+.analysis-option.active{
+  color:var(--t1);border-color:var(--acc-border);background:var(--acc-bg);
+  box-shadow:inset 0 0 0 1px rgba(139,151,245,.08);
+}
 .analysis-option input{position:absolute;opacity:0;pointer-events:none}
-.analysis-name{flex:1;line-height:1.25}
-.analysis-check{
-  width:14px;height:14px;border-radius:3px;flex-shrink:0;
-  border:1px solid var(--b2);background:transparent;
-  display:flex;align-items:center;justify-content:center;
+.analysis-name{
+  flex:1;min-width:0;line-height:1.25;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.analysis-switch{
+  width:30px;height:16px;border-radius:999px;flex-shrink:0;
+  border:1px solid var(--b2);background:var(--s2);position:relative;
   transition:background .15s,border-color .15s;
 }
-.analysis-option.active .analysis-check{
+.analysis-switch::after{
+  content:"";position:absolute;width:10px;height:10px;border-radius:50%;
+  left:2px;top:2px;background:var(--t4);transition:transform .15s,background .15s;
+}
+.analysis-option.active .analysis-switch{
   background:var(--acc);border-color:var(--acc);
 }
-.analysis-check-tick{
-  width:8px;height:8px;opacity:0;transition:opacity .15s;
-  fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+.analysis-option.active .analysis-switch::after{
+  transform:translateX(14px);background:#fff;
 }
-.analysis-option.active .analysis-check-tick{opacity:1}
 .sb-hint{
   font-family:var(--sans);font-size:11px;color:var(--t2);
   padding:.3rem 0 .3rem .6rem;border-left:2px solid var(--acc-border);border-radius:0;
@@ -952,6 +986,10 @@ tbody tr:hover{background:var(--s2)}
   .landing-settings {
     max-width: 300px;
   }
+  .analysis-list {
+    grid-template-columns: 1fr;
+    max-height: 210px;
+  }
   .run-btn {
     max-width: 300px;
     padding: 0.8rem;
@@ -1395,6 +1433,8 @@ tbody tr:hover{background:var(--s2)}
 /* ── STATE ─────────────────────────────────────────────────────── */
 let S={file:null,data:null,ltimer:null, currentAnalysisIndex: 0};
 const BASE = ""; // Use relative paths for Vercel deployment
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+const SUPPORTED_FILE_EXTS = new Set(['csv','xlsx','xls','json']);
 
 const HINTS={
   kpi:"Track revenue over time. Outputs MoM, QoQ, YoY growth with trend charts.",
@@ -1474,6 +1514,15 @@ wireUpload('landing-upload-zone','landing-file-input');
 wireUpload('sb-upload-zone','sb-file-input');
 
 function setFile(f){
+  const ext=(f.name.split('.').pop()||'').toLowerCase();
+  if(!SUPPORTED_FILE_EXTS.has(ext)){
+    toast('Unsupported file type. Upload a CSV, XLSX, XLS, or JSON file.','error');
+    return;
+  }
+  if(f.size > MAX_UPLOAD_BYTES){
+    toast('File is too large for Vercel. Please use a file under 4 MB.','error');
+    return;
+  }
   S.file=f;
   const sz=f.size>1048576?(f.size/1048576).toFixed(1)+' MB':(f.size/1024).toFixed(0)+' KB';
   const lbl='✓ '+f.name+' ('+sz+')';
@@ -1493,12 +1542,12 @@ function setFile(f){
 async function fetchCols(f){
   try{
     const fd=new FormData();fd.append('file',f);
-    const r=await fetch('/columns',{method:'POST',body:fd}); // Use relative path
+    const r=await apiFetch('/columns',{method:'POST',body:fd},20000);
     if(!r.ok)return;const d=await r.json();
     ['l-date-col','sb-date-col'].forEach(id=>fillSel(id,d.date,d.all));
     ['l-metric-col','sb-metric-col'].forEach(id=>fillSel(id,d.numeric,d.all));
     ['l-customer-col','sb-customer-col'].forEach(id=>fillSel(id,d.id,d.all));
-  }catch(e){}
+  }catch(e){toast(e.message||'Could not read columns from this file.','warning');}
 }
 function fillSel(id,priority,all){
   const s=document.getElementById(id);if(!s)return;
@@ -1727,11 +1776,52 @@ function enableRun(){
 }
 
 /* ── RUN ANALYSIS ──────────────────────────────────────────────── */
-function fetchWithTimeout(url, options={}, timeoutMs=60000){
+function fetchWithTimeout(url, options={}, timeoutMs=55000){
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),timeoutMs);
   return fetch(url,{...options,signal:controller.signal})
     .finally(()=>clearTimeout(timer));
+}
+
+async function apiFetch(path, options={}, timeoutMs=55000){
+  const urls=['/api'+path, path];
+  let lastErr=null;
+  for(const url of urls){
+    try{
+      const res=await fetchWithTimeout(url, options, timeoutMs);
+      if(res.ok)return res;
+      let detail='Request failed';
+      try{
+        const data=await res.json();
+        detail=data.detail||data.message||detail;
+      }catch(_){
+        try{detail=await res.text()||detail;}catch(__){}
+      }
+      throw new Error(detail+' (HTTP '+res.status+')');
+    }catch(e){
+      lastErr=e;
+      if(e.name!=='TypeError' && e.name!=='AbortError')throw e;
+    }
+  }
+  if(lastErr?.name==='AbortError'){
+    throw new Error('The analysis request timed out before Vercel returned a response. Try one analysis at a time or a smaller file.');
+  }
+  throw new Error('The API did not respond. If this is on Vercel, redeploy and check that the Python function returns OK at /api/health.');
+}
+
+function showRunFailure(message){
+  clearInterval(S.ltimer);
+  [1,2,3,4,5].forEach(i=>{const e=document.getElementById('ls'+i);if(e)e.classList.remove('active');});
+  showDash();
+  document.getElementById('dash-title').textContent='Analysis failed';
+  document.getElementById('dash-sub').textContent=message;
+  document.getElementById('summary-cards').innerHTML='';
+  document.getElementById('kpi-stats').innerHTML='';
+  document.getElementById('kpi-charts').innerHTML=errBox(message);
+  document.getElementById('alerts-content').innerHTML='';
+  document.getElementById('quality-content').innerHTML='';
+  document.getElementById('panel-preview').innerHTML='';
+  switchTab('panel-kpi');
 }
 
 function landingRun(){
@@ -1759,6 +1849,17 @@ async function runAnalysis(typesToRun = selectedAnalysisTypes){
   resetDashboardTabs();
   S.data = [];
 
+  try{
+    await apiFetch('/health',{method:'GET'},10000);
+  }catch(e){
+    const msg=e.message||'The API did not respond.';
+    S.data=[{error:msg,analysis_type:'kpi',filename:S.file.name}];
+    showRunFailure(msg);
+    toast(msg,'error');
+    enableRun();
+    return;
+  }
+
   const results = [];
 
   for (let i = 0; i < typesToRun.length; i++) {
@@ -1778,8 +1879,7 @@ async function runAnalysis(typesToRun = selectedAnalysisTypes){
     fd.append('customer_col',document.getElementById('sb-customer-col').value);
 
     try{
-      const res=await fetchWithTimeout('/upload',{method:'POST',body:fd},60000); // Use relative path
-      if(!res.ok){const e=await res.json();throw new Error(e.detail||'Analysis failed for '+type);}
+      const res=await apiFetch('/upload',{method:'POST',body:fd},55000);
       const data = await res.json();
       results.push(data);
       S.data = results;
@@ -1788,12 +1888,13 @@ async function runAnalysis(typesToRun = selectedAnalysisTypes){
       showDash();
 
     }catch(e){
+      const msg=e.message||'Analysis failed.';
       results.push({ error: e.message, analysis_type: type, filename: S.file.name });
       S.data = results;
       const target=ensureAnalysisPanel(type);
-      target.innerHTML=errBox(e.name==='AbortError'?'Request timed out while generating charts. Try fewer analyses or a smaller file.':e.message);
+      target.innerHTML=errBox(msg);
       switchTab('panel-analysis-'+type);
-      toast(`Error running ${type.toUpperCase()} analysis: ${e.name==='AbortError'?'Request timed out while generating charts. Try fewer analyses or a smaller file.':e.message}`, 'error');
+      toast(`Error running ${type.toUpperCase()} analysis: ${msg}`, 'error');
       showDash();
     }
   }
@@ -2002,11 +2103,10 @@ async function exportCSV(){
   if(!S.file)return;
   try{
     const fd=new FormData();fd.append('file',S.file);
-    const r=await fetch('/export',{method:'POST',body:fd}); // Use relative path
-    if(!r.ok)throw new Error('Export failed');
+    const r=await apiFetch('/export',{method:'POST',body:fd},30000);
     const blob=await r.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');
     a.href=url;a.download='cleaned_'+S.file.name;a.click();URL.revokeObjectURL(url);
-  }catch(e){alert('Export failed: '+e.message);}
+  }catch(e){toast('Export failed: '+e.message,'error');}
 }
 function downloadReport(){
   const results=Array.isArray(S.data)?S.data:[S.data];
@@ -2017,6 +2117,22 @@ function downloadReport(){
 }
 
 /* ── HELPERS ───────────────────────────────────────────────────── */
+function toast(message,type='info'){
+  let stack=document.querySelector('.toast-stack');
+  if(!stack){
+    stack=document.createElement('div');
+    stack.className='toast-stack';
+    document.body.appendChild(stack);
+  }
+  const el=document.createElement('div');
+  el.className='toast '+type;
+  const label=type==='error'?'Error':type==='warning'?'Heads up':'Notice';
+  el.innerHTML='<span class="toast-title">'+label+'</span>'+String(message||'Something happened.');
+  stack.appendChild(el);
+  setTimeout(()=>{el.style.opacity='0';el.style.transform='translateY(6px)';},4200);
+  setTimeout(()=>el.remove(),4600);
+}
+
 function ccard(title,b64,full=false){
   return'<div class="chart-card"'+(full?' style="grid-column:1/-1"':'')+'>'+
     '<div class="chart-head"><div class="chart-title">'+title+'</div></div>'+
