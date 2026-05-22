@@ -1,0 +1,21 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "fastapi",
+  "fluid": true,
+  "functions": {
+    "api/index.py": {
+      "includeFiles": "{insightflow_app.py,engine.py,templates/**}",
+      "maxDuration": 300
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/api"
+    },
+    {
+      "source": "/favicon.ico",
+      "destination": "/api/favicon.ico"
+    }
+  ]
+}
