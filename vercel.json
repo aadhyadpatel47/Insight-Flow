@@ -8,21 +8,15 @@
         "python": "3.11",
         "includeFiles": [
           "engine.py",
-          "template/**",
           "templates/**"
-        ],
-        "maxDuration": 300
+        ]
       }
     }
   ],
   "functions": {
     "app.py": {
-      "maxDuration": 300,
-      "includeFiles": [
-        "engine.py",
-        "template/**",
-        "templates/**"
-      ]
+      "maxDuration": 60,
+      "memory": 1024
     }
   },
   "routes": [
