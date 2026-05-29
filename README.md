@@ -3,7 +3,7 @@
 
 > Upload any CSV, Excel, or JSON file. Get domain-aware business insights, written narrative summaries, anomaly alerts, and a downloadable HTML report — in seconds.
 
-🔗 **Live:** insight-flow-ruddy.vercel.app/
+🔗 **Live:** insight-flow-ruddy.vercel.app
 📁 **GitHub:** [aadhyadpatel47](https://github.com/aadhyadpatel47)
 💼 **LinkedIn:** [aadhyapatel](https://www.linkedin.com/in/aadhyapatel)
 
